@@ -7,6 +7,10 @@ on:
     - cron: '0 */6 * * *' # اجرای خودکار هر ۶ ساعت یک‌بار
   workflow_dispatch:
 
+# مجوز دسترسی جهت ثبت و پُش تغییرات به ریپوزیتوری
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
