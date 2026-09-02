@@ -1,5 +1,5 @@
-name: afghan_exchange
-description: "Afghan Exchange Rates App"
+name: shahzada_rates
+description: "Afghan Exchange Rates App with Dynamic Multi-Ad Slider"
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -10,6 +10,8 @@ dependencies:
   flutter:
     sdk: flutter
   http: ^1.1.0
+  shared_preferences: ^2.2.2
+  url_launcher: ^6.2.5
 
 dev_dependencies:
   flutter_test:
