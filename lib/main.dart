@@ -149,8 +149,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _launchContact(String url) async {
     if (url.trim().isEmpty) return;
     final Uri uri = Uri.parse(url.trim());
-    if (await canLaunchUrl(uri)) {
+    try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      debugPrint('خطا در باز کردن لینک: $e');
     }
   }
 
