@@ -1,9 +1,29 @@
 {
-  "last_updated": "2026-09-03 10:00:00",
+  "last_updated": "2026-09-02 18:33:23",
   "rates": [
-    {"currency": "USD (دالر)", "buy": "70.50", "sell": "70.70", "unit": "AFN"},
-    {"currency": "IRR (تومان)", "buy": "1.12", "sell": "1.15", "unit": "AFN (هر هزار تومان)"},
-    {"currency": "PKR (کلدار)", "buy": "250", "sell": "252", "unit": "AFN (هر هزار کلدار)"},
-    {"currency": "EUR (یورو)", "buy": "76.00", "sell": "76.40", "unit": "AFN"}
+    {
+      "currency": "USD (دالر)",
+      "buy": "70.50",
+      "sell": "70.70",
+      "unit": "AFN"
+    },
+    {
+      "currency": "IRR (تومان)",
+      "buy": "1.12",
+      "sell": "1.15",
+      "unit": "AFN (هر هزار تومان)"
+    },
+    {
+      "currency": "PKR (کلدار)",
+      "buy": "250",
+      "sell": "252",
+      "unit": "AFN (هر هزار کلدار)"
+    },
+    {
+      "currency": "EUR (یورو)",
+      "buy": "76.00",
+      "sell": "76.40",
+      "unit": "AFN"
+    }
   ]
 }
