@@ -1,5 +1,5 @@
 name: shahzada_rates
-description: "Afghan Exchange Rates App with Dynamic Multi-Ad Slider"
+description: "Afghan Narkh real-time and offline price tracking application."
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -9,13 +9,16 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  http: ^1.1.0
+  http: ^1.2.0
   shared_preferences: ^2.2.2
-  url_launcher: ^6.2.5
+  url_launcher: ^6.2.4
+  firebase_core: ^3.6.0
+  firebase_analytics: ^11.3.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_lints: ^3.0.0
 
 flutter:
   uses-material-design: true
