@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'admin_page.dart';
 
 void main() {
@@ -15,10 +18,7 @@ class AfghanExchangeApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'افغان نرخ',
-      theme: ThemeData(
-        primarySwatch: Colors.green,
-        fontFamily: 'Roboto',
-      ),
+      theme: ThemeData(primarySwatch: Colors.green),
       home: const HomeScreen(),
     );
   }
@@ -33,11 +33,78 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? data;
+  List<AdItem> activeAds = [];
+  int currentAdIndex = 0;
+  Timer? _adTimer;
+  int rotationInterval = 5;
 
   @override
   void initState() {
     super.initState();
     loadRates();
+    loadAdsAndStartTimer();
+  }
+
+  @override
+  void dispose() {
+    _adTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> loadAdsAndStartTimer() async {
+    final prefs = await SharedPreferences.getInstance();
+    int interval = prefs.getInt('ad_rotation_interval') ?? 5;
+    String? rawAds = prefs.getString('ad_list_json');
+
+    List<AdItem> allAds = [];
+    if (rawAds != null && rawAds.isNotEmpty) {
+      List<dynamic> decoded = json.decode(rawAds);
+      allAds = decoded.map((item) => AdItem.fromJson(item)).toList();
+    } else {
+      allAds = [
+        AdItem(
+          id: "1",
+          title: "صرافی بزرگ شهزاده",
+          content: "حواله‌جات با نازل‌ترین قیمت و سریع‌ترین زمان به تمام نقاط جهان.",
+          contact: "https://wa.me/93700000000",
+          isActive: true,
+          badgeText: "پیشنهاد ویژه",
+          bgHexColor: "#FF8C00",
+        ),
+        AdItem(
+          id: "2",
+          title: "خرید و فروش اسعار دیجیتال",
+          content: "تبادل تتر و کرپتو با مناسب‌ترین نرخ روز در سرای شهزاده.",
+          contact: "https://t.me/sarafy_shahzada",
+          isActive: true,
+          badgeText: "بازار ارز",
+          bgHexColor: "#2E7D32",
+        ),
+      ];
+    }
+
+    List<AdItem> filtered = allAds.where((ad) => ad.isActive).toList();
+
+    setState(() {
+      activeAds = filtered;
+      rotationInterval = interval;
+      currentAdIndex = 0;
+    });
+
+    _startAdTimer();
+  }
+
+  void _startAdTimer() {
+    _adTimer?.cancel();
+    if (activeAds.length > 1) {
+      _adTimer = Timer.periodic(Duration(seconds: rotationInterval), (timer) {
+        if (mounted && activeAds.isNotEmpty) {
+          setState(() {
+            currentAdIndex = (currentAdIndex + 1) % activeAds.length;
+          });
+        }
+      });
+    }
   }
 
   Future<void> loadRates() async {
@@ -47,7 +114,27 @@ class _HomeScreenState extends State<HomeScreen> {
         data = json.decode(response);
       });
     } catch (e) {
-      debugPrint('Error loading rates: $e');
+      debugPrint('Error: $e');
+    }
+  }
+
+  Color _parseColor(String hexColor) {
+    try {
+      String cleanHex = hexColor.replaceAll('#', '');
+      if (cleanHex.length == 6) {
+        cleanHex = 'FF' + cleanHex;
+      }
+      return Color(int.parse(cleanHex, radix: 16));
+    } catch (e) {
+      return Colors.orange[800]!;
+    }
+  }
+
+  Future<void> _launchContact(String url) async {
+    if (url.trim().isEmpty) return;
+    final Uri uri = Uri.parse(url.trim());
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -57,27 +144,18 @@ class _HomeScreenState extends State<HomeScreen> {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         appBar: AppBar(
-          title: GestureDetector(
-            onLongPress: () {
-              // با لمس طولانی عنوان برنامه، صفحه ورود مدیر باز می‌شود
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const AdminLoginPage()),
-              );
-            },
-            child: const Text('افغان نرخ (سرای شهزاده)'),
-          ),
+          title: const Text('افغان نرخ (سرای شهزاده)'),
           centerTitle: true,
           backgroundColor: Colors.green[800],
           actions: [
             IconButton(
               icon: const Icon(Icons.admin_panel_settings),
-              tooltip: 'ورود مدیر',
-              onPressed: () {
-                Navigator.push(
+              onPressed: () async {
+                await Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const AdminLoginPage()),
                 );
+                loadAdsAndStartTimer();
               },
             ),
           ],
@@ -86,44 +164,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ? const Center(child: CircularProgressIndicator())
             : Column(
                 children: [
-                  // کارت بنر تبلیغاتی ویژه مدیر
-                  Container(
-                    margin: const EdgeInsets.all(12),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.amber[700]!, Colors.orange[800]!],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: const [
-                        BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
-                      ],
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.campaign, color: Colors.white, size: 36),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'مکان تبلیغات شما',
-                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                'برای سفارش تبلیغ و دیده شدن توسط هزاران کاربر، با ما تماس بگیرید.',
-                                style: TextStyle(color: Colors.white70, fontSize: 12),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // زمان بروزرسانی
+                  if (activeAds.isNotEmpty) _buildAdBanner(),
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                     color: Colors.green[50],
@@ -132,15 +173,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         const Icon(Icons.access_time, size: 18, color: Colors.green),
                         const SizedBox(width: 8),
-                        Text(
-                          'آخرین بروزرسانی: ${data!['last_updated']}',
-                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
-                        ),
+                        Text('آخرین بروزرسانی: ${data!['last_updated']}'),
                       ],
                     ),
                   ),
-
-                  // لیست نرخ‌ها
                   Expanded(
                     child: ListView.builder(
                       itemCount: data!['rates'].length,
@@ -161,8 +197,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                Text('خرید: ${rate['buy']}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-                                Text('فروش: ${rate['sell']}', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                                Text('خرید: ${rate['buy']}',
+                                    style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                                Text('فروش: ${rate['sell']}',
+                                    style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
                               ],
                             ),
                           ),
@@ -172,6 +210,96 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
+      ),
+    );
+  }
+
+  Widget _buildAdBanner() {
+    final currentAd = activeAds[currentAdIndex % activeAds.length];
+    final cardColor = _parseColor(currentAd.bgHexColor);
+
+    return InkWell(
+      onTap: () => _launchContact(currentAd.contact),
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 600),
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        child: Container(
+          key: ValueKey<String>(currentAd.id + currentAdIndex.toString()),
+          margin: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [cardColor, cardColor.withOpacity(0.8)],
+            ),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: const [
+              BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+            ],
+          ),
+          child: Column(
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.campaign, color: Colors.white, size: 32),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              currentAd.title,
+                              style: const TextStyle(
+                                  color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.white24,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                currentAd.badgeText,
+                                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          currentAd.content,
+                          style: const TextStyle(color: Colors.white90, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (activeAds.length > 1) ...[
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(activeAds.length, (index) {
+                    return Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      width: currentAdIndex == index ? 12 : 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: currentAdIndex == index ? Colors.white : Colors.white38,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    );
+                  }),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
