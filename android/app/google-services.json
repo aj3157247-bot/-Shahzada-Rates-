@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "482371887248",
-    "project_id": "shahzada-rates",
-    "storage_bucket": "shahzada-rates.firebasestorage.app"
+    "project_number": "389689439166",
+    "project_id": "shahzada-rates-c995f",
+    "storage_bucket": "shahzada-rates-c995f.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:482371887248:android:798f111a21204700b6f815",
+        "mobilesdk_app_id": "1:389689439166:android:1342435b27fff62e09ffef",
         "android_client_info": {
           "package_name": "com.shahzadarates.app"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCZqXdLXgrot7j1aC69degdyl75uNgQlJQ"
+          "current_key": "AIzaSyBdLQQPZtSslnnhtToUmsR9OCUFuXhDWzQ"
         }
       ],
       "services": {
