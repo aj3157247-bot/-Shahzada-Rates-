@@ -109,7 +109,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> loadRates() async {
-    // ۱. ابتدا تلاش برای دریافت نرخ‌های آنلاین از سرور (لینک زیر را با آدرس فایل rates.json روی هاست خود جایگزین کنید)
     try {
       final response = await http.get(
         Uri.parse('https://yourdomain.com/rates.json'),
@@ -125,7 +124,6 @@ class _HomeScreenState extends State<HomeScreen> {
       debugPrint('اینترنت وصل نیست یا سرور پاسخ نمی‌دهد. استفاده از حالت آفلاین...');
     }
 
-    // ۲. اگر اتصال اینترنت برقرار نبود، به صورت خودکار از فایل محلی داخل اپ استفاده می‌کند
     try {
       final String response = await rootBundle.loadString('assets/rates.json');
       setState(() {
@@ -295,7 +293,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 6),
                         Text(
                           currentAd.content,
-                          style: const TextStyle(color: Colors.white90, fontSize: 13),
+                          style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 13),
                         ),
                       ],
                     ),
