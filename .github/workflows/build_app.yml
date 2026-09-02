@@ -45,6 +45,9 @@ jobs:
       with:
         flutter-version: '3.19.x'
 
+    - name: Generate Android Project Files
+      run: flutter create . --platforms=android --org=com.afghanrate.app
+
     - name: Install Dependencies
       run: flutter pub get
 
