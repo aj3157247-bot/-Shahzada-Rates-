@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
 import 'admin_page.dart';
 
 void main() {
@@ -73,11 +74,11 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         AdItem(
           id: "2",
-          title: "خرید و فروش اسعار دیجیتال",
-          content: "تبادل تتر و کرپتو با مناسب‌ترین نرخ روز در سرای شهزاده.",
+          title: "خرید و فروش طلا و اسعار",
+          content: "مناسب‌ترین نرخ خرید و فروش طلا و ارزهای خارجی در سرای شهزاده.",
           contact: "https://t.me/sarafy_shahzada",
           isActive: true,
-          badgeText: "بازار ارز",
+          badgeText: "بازار طلا",
           bgHexColor: "#2E7D32",
         ),
       ];
@@ -108,13 +109,30 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> loadRates() async {
+    // ۱. ابتدا تلاش برای دریافت نرخ‌های آنلاین از سرور (لینک زیر را با آدرس فایل rates.json روی هاست خود جایگزین کنید)
+    try {
+      final response = await http.get(
+        Uri.parse('https://yourdomain.com/rates.json'),
+      ).timeout(const Duration(seconds: 5));
+      
+      if (response.statusCode == 200) {
+        setState(() {
+          data = json.decode(response.body);
+        });
+        return; 
+      }
+    } catch (e) {
+      debugPrint('اینترنت وصل نیست یا سرور پاسخ نمی‌دهد. استفاده از حالت آفلاین...');
+    }
+
+    // ۲. اگر اتصال اینترنت برقرار نبود، به صورت خودکار از فایل محلی داخل اپ استفاده می‌کند
     try {
       final String response = await rootBundle.loadString('assets/rates.json');
       setState(() {
         data = json.decode(response);
       });
-    } catch (e) {
-      debugPrint('Error: $e');
+    } catch (localError) {
+      debugPrint('خطا در خواندن فایل محلی: $localError');
     }
   }
 
@@ -182,14 +200,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       itemCount: data!['rates'].length,
                       itemBuilder: (context, index) {
                         final rate = data!['rates'][index];
+                        bool isGoldOrSilver = rate['currency'].contains('طلا') || rate['currency'].contains('نقره');
                         return Card(
                           elevation: 2,
                           margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           child: ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: Colors.green[100],
-                              child: const Icon(Icons.attach_money, color: Colors.green),
+                              backgroundColor: isGoldOrSilver ? Colors.amber[100] : Colors.green[100],
+                              child: Icon(
+                                isGoldOrSilver ? Icons.diamond : Icons.attach_money,
+                                color: isGoldOrSilver ? Colors.amber[800] : Colors.green,
+                              ),
                             ),
                             title: Text(rate['currency'], style: const TextStyle(fontWeight: FontWeight.bold)),
                             subtitle: Text(rate['unit'], style: const TextStyle(fontSize: 12)),
