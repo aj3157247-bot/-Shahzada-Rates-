@@ -7,11 +7,14 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
-import 'admin_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint('Firebase initialization error: $e');
+  }
   runApp(const AfghanExchangeApp());
 }
 
@@ -154,6 +157,26 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class AdminPage extends StatelessWidget {
+  const AdminPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('تنظیمات ادمین'),
+        backgroundColor: Colors.green[800],
+      ),
+      body: const Center(
+        child: Text(
+          'بخش مدیریت نرخ‌ها',
+          style: TextStyle(fontSize: 18),
+        ),
       ),
     );
   }
