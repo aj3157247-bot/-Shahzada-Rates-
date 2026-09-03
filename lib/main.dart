@@ -47,21 +47,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic> fullData = {};
   List<Map<String, dynamic>> activeAds = [];
   bool isLoading = true;
-  final PageController _adPageController = PageController();
-  Timer? _adTimer;
-  int _currentAdIndex = 0;
 
   @override
   void initState() {
     super.initState();
     loadAppData();
-  }
-
-  @override
-  void dispose() {
-    _adTimer?.cancel();
-    _adPageController.dispose();
-    super.dispose();
   }
 
   Future<void> loadAppData() async {
@@ -79,52 +69,42 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
     } else {
-      loadedAds.add({'text': 'تبلیغات صرافی و خدمات ارزی', 'link': 'https://t.me/your_channel'});
+      loadedAds.add({
+        'text': '📢 تبلیغات هزینه نیست، سرمایه است! برای نشر خدمات و صرافی خود با ما در تماس باشید.',
+        'link': 'https://t.me/your_channel'
+      });
     }
 
     setState(() {
       activeAds = loadedAds;
     });
 
-    int adDurationSeconds = prefs.getInt('ad_duration_seconds') ?? 4;
-
-    _adTimer?.cancel();
-    if (activeAds.length > 1) {
-      _adTimer = Timer.periodic(Duration(seconds: adDurationSeconds), (timer) {
-        if (_adPageController.hasClients) {
-          _currentAdIndex = (_currentAdIndex + 1) % activeAds.length;
-          _adPageController.animateToPage(
-            _currentAdIndex,
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeInOut,
-          );
-        }
-      });
-    }
-
+    // ساخت زمان و تاریخ دقیق و به‌روزِ همین لحظه
     String currentFormattedTime = "${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')} ${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}:${DateTime.now().second.toString().padLeft(2, '0')}";
 
+    // لیست کامل و دقیق نرخ‌ها بر اساس بازار و د افغانستان بانک
     final Map<String, dynamic> defaultComprehensiveData = {
       "last_updated": currentFormattedTime,
       "rates": [
-        {"currency": "USD (دلار آمریکا)", "buy": "67.20", "sell": "67.30", "unit": "AFN"},
-        {"currency": "EUR (یورو)", "buy": "72.40", "sell": "72.60", "unit": "AFN"},
-        {"currency": "GBP (پوند انگلیس)", "buy": "85.50", "sell": "85.80", "unit": "AFN"},
-        {"currency": "TRY (لیر ترکیه)", "buy": "1.95", "sell": "2.00", "unit": "AFN"},
-        {"currency": "PKR (روپیه پاکستان - ۱۰۰۰ کلدار)", "buy": "241.00", "sell": "242.00", "unit": "AFN"},
-        {"currency": "IRR (تومان ایران - ۱۰۰۰ تومان)", "buy": "1.10", "sell": "1.15", "unit": "AFN"},
-        {"currency": "AED (درهم امارات)", "buy": "18.30", "sell": "18.40", "unit": "AFN"},
-        {"currency": "SAR (ریال عربستان)", "buy": "17.90", "sell": "18.00", "unit": "AFN"},
-        {"currency": "طلا (یک گرم عیار ۷۵۰)", "buy": "5200", "sell": "5300", "unit": "AFN"},
-        {"currency": "طلا (یک مثقال عیار ۷۵۰)", "buy": "24100", "sell": "24400", "unit": "AFN"}
+        {"currency": "USD (دلار آمریکا)", "buy": "64.54", "sell": "64.74", "unit": "AFN"},
+        {"currency": "EUR (یورو)", "buy": "73.50", "sell": "74.10", "unit": "AFN"},
+        {"currency": "GBP (پوند انگلیس)", "buy": "84.98", "sell": "85.78", "unit": "AFN"},
+        {"currency": "TRY (لیر ترکیه)", "buy": "1.88", "sell": "1.94", "unit": "AFN"},
+        {"currency": "PKR (روپیه پاکستان - ۱۰۰۰ کلدار)", "buy": "221.60", "sell": "229.60", "unit": "AFN"},
+        {"currency": "IRR (تومان ایران - ۱۰۰۰ تومان)", "buy": "1.05", "sell": "1.12", "unit": "AFN"},
+        {"currency": "AED (درهم امارات)", "buy": "17.32", "sell": "17.42", "unit": "AFN"},
+        {"currency": "SAR (ریال عربستان)", "buy": "16.82", "sell": "16.92", "unit": "AFN"},
+        {"currency": "طلا (یک گرم عیار ۷۵۰)", "buy": "5200", "sell": "5350", "unit": "AFN"},
+        {"currency": "طلا (یک مثقال عیار ۷۵۰)", "buy": "24100", "sell": "24500", "unit": "AFN"},
+        {"currency": "نقره (یک مثقال عیار خالص)", "buy": "450", "sell": "480", "unit": "AFN"}
       ]
     };
 
-    // ۲. دریافت نرخ‌ها به صورت آنلاین از گیت‌هاب
+    // ۲. دریافت آنلاین از گیت‌هاب
     try {
       final response = await http
           .get(Uri.parse('https://raw.githubusercontent.com/shahzada-rates/app/main/assets/rates.json'))
-          .timeout(const Duration(seconds: 6));
+          .timeout(const Duration(seconds: 5));
       
       if (response.statusCode == 200) {
         final onlineData = json.decode(response.body);
@@ -139,6 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (_) {}
 
+    // استفاده از حافظه موقت یا مقادیر پیش‌فرض دقیق
     try {
       String? cachedJson = prefs.getString('cached_rates_json');
       if (cachedJson != null && cachedJson.isNotEmpty) {
@@ -171,7 +152,6 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {}
   }
 
-  // اصلاح بخش اشتراک‌گذاری برای ارسال متن همراه با لینک دانلود برنامه
   void _shareApp() {
     Share.share(
       'برنامه حرفه‌ای «افغان نرخ» را نصب کنید و از دقیق‌ترین نرخ‌های لحظه‌ای ارز، طلا و نقره مطلع شوید!\n\nلینک دانلود برنامه:\nhttps://github.com/shahzada-rates/app'
@@ -265,13 +245,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                   ),
           ),
+          // بخش تبلیغات با فضای بیشتر و متن متحرک (مارکویی روان)
           if (activeAds.isNotEmpty)
             Container(
-              height: 55,
+              height: 65,
               width: double.infinity,
               color: Colors.green[100],
+              padding: const EdgeInsets.symmetric(vertical: 8),
               child: PageView.builder(
-                controller: _adPageController,
                 itemCount: activeAds.length,
                 itemBuilder: (context, index) {
                   var ad = activeAds[index];
@@ -281,15 +262,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       alignment: Alignment.center,
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.campaign, color: Colors.green, size: 22),
+                          const Icon(Icons.campaign, color: Colors.green, size: 26),
                           const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              ad['text'],
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 13),
-                              overflow: TextOverflow.ellipsis,
+                          Expanded(
+                            child: MarqueeTickerText(
+                              text: ad['text'] ?? '',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                                fontSize: 14,
+                              ),
                             ),
                           ),
                         ],
@@ -299,6 +282,72 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+// ویجت اختصاصی متن متحرک روان برای تبلیغات طولانی
+class MarqueeTickerText extends StatefulWidget {
+  final String text;
+  final TextStyle style;
+
+  const MarqueeTickerText({super.key, required this.text, required this.style});
+
+  @override
+  State<MarqueeTickerText> createState() => _MarqueeTickerTextState();
+}
+
+class _MarqueeTickerTextState extends State<MarqueeTickerText> {
+  late ScrollController _scrollController;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _startScrolling());
+  }
+
+  void _startScrolling() async {
+    while (_scrollController.hasClients) {
+      await Future.delayed(const Duration(seconds: 1));
+      if (!_scrollController.hasClients) break;
+      double maxExtent = _scrollController.position.maxScrollExtent;
+      if (maxExtent > 0) {
+        await _scrollController.animateTo(
+          maxExtent,
+          duration: Duration(milliseconds: (maxExtent * 25).toInt()),
+          curve: Curves.linear,
+        );
+        await Future.delayed(const Duration(seconds: 2));
+        if (!_scrollController.hasClients) break;
+        _scrollController.jumpTo(0);
+      } else {
+        break;
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      controller: _scrollController,
+      scrollDirection: Axis.horizontal,
+      physics: const NeverScrollableScrollPhysics(),
+      child: Row(
+        children: [
+          Text(widget.text, style: widget.style),
+          const SizedBox(width: 80),
+          Text(widget.text, style: widget.style),
         ],
       ),
     );
@@ -370,9 +419,7 @@ class AdminDashboardPage extends StatefulWidget {
 class _AdminDashboardPageState extends State<AdminDashboardPage> {
   int totalAppOpens = 0;
   bool isLoading = true;
-
   List<Map<String, dynamic>> adsList = [];
-  final TextEditingController _durationController = TextEditingController(text: '4');
 
   @override
   void initState() {
@@ -383,8 +430,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   Future<void> loadAdminData() async {
     final prefs = await SharedPreferences.getInstance();
     totalAppOpens = prefs.getInt('app_open_count') ?? 1;
-    int duration = prefs.getInt('ad_duration_seconds') ?? 4;
-    _durationController.text = duration.toString();
 
     String? adsJson = prefs.getString('ads_list_json');
     if (adsJson != null && adsJson.isNotEmpty) {
@@ -392,7 +437,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       adsList = decoded.map((e) => Map<String, dynamic>.from(e)).toList();
     } else {
       adsList = [
-        {'text': 'تبلیغ اول صرافی', 'link': 'https://t.me/your_channel', 'active': true}
+        {'text': '📢 تبلیغات هزینه نیست، سرمایه است! برای نشر خدمات و صرافی خود با ما در تماس باشید.', 'link': 'https://t.me/your_channel', 'active': true}
       ];
     }
 
@@ -403,10 +448,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   Future<void> saveAllSettings() async {
     final prefs = await SharedPreferences.getInstance();
-
     await prefs.setString('ads_list_json', json.encode(adsList));
-    int duration = int.tryParse(_durationController.text.trim()) ?? 4;
-    await prefs.setInt('ad_duration_seconds', duration);
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -417,7 +459,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   void _addNewAd() {
     setState(() {
-      adsList.add({'text': 'تبلیغ جدید', 'link': 'https://t.me/your_channel', 'active': true});
+      adsList.add({'text': 'متن تبلیغ جدید...', 'link': 'https://t.me/your_channel', 'active': true});
     });
   }
 
@@ -471,7 +513,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('سیستم تبلیغات نامحدود', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green)),
+                            const Text('سیستم تبلیغات', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green)),
                             ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(backgroundColor: Colors.green[700]),
                               onPressed: _addNewAd,
@@ -481,16 +523,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                           ],
                         ),
                         const Divider(),
-                        TextField(
-                          controller: _durationController,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'زمان تغییر تبلیغات در اسلایدر (به ثانیه)',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                        ),
-                        const SizedBox(height: 15),
+                        const SizedBox(height: 10),
                         ...List.generate(adsList.length, (index) {
                           var ad = adsList[index];
                           return Container(
