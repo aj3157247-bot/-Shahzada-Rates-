@@ -44,10 +44,10 @@
     </section>
 
     <div class="max-w-3xl mx-auto px-4 mb-12">
-        <div id="promo-banner" class="transition-all duration-700 ease-in-out p-6 md:p-8 rounded-3xl text-white text-center transform hover:scale-[1.03] hover:-translate-y-1.5 cursor-pointer relative overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.3)] border-2 border-white/30 bg-gradient-to-r from-emerald-600 via-teal-700 to-green-800">
-            <span id="promo-tag" class="bg-white/25 backdrop-blur-md text-xs md:text-sm font-extrabold px-4 py-1.5 rounded-full inline-block mb-3 shadow-[0_4px_10px_rgba(0,0,0,0.15)] border border-white/30">🔥 پیشنهاد ویژه</span>
-            <h3 id="promo-title" class="text-xl md:text-2xl font-black mb-2 tracking-wide drop-shadow-md">بالاترین و دقیق‌ترین نرخ‌ اسعار در بازار صرافان کابل</h3>
-            <p id="promo-desc" class="text-sm md:text-base opacity-95 font-medium drop-shadow">همین حالا اپلیکیشن را دانلود کنید و از تغییرات لحظه‌ای دلار و طلا مطلع شوید.</p>
+        <div id="promo-banner" class="transition-all duration-700 ease-in-out p-6 md:p-8 rounded-3xl shadow-2xl text-white text-center transform hover:scale-[1.02] cursor-pointer bg-gradient-to-r from-emerald-600 via-teal-700 to-green-800 border border-white/20">
+            <span id="promo-tag" class="bg-white/20 backdrop-blur-md text-xs md:text-sm font-bold px-4 py-1.5 rounded-full inline-block mb-3 shadow-inner">🔥 پیشنهاد ویژه</span>
+            <h3 id="promo-title" class="text-xl md:text-2xl font-black mb-2 tracking-wide">بالاترین و دقیق‌ترین نرخ‌ اسعار در بازار صرافان کابل</h3>
+            <p id="promo-desc" class="text-sm md:text-base opacity-95 font-medium">همین حالا اپلیکیشن را دانلود کنید و از تغییرات لحظه‌ای دلار و طلا مطلع شوید.</p>
         </div>
     </div>
 
@@ -127,20 +127,20 @@
 
         function changePromo() {
             banner.style.opacity = '0';
-            banner.style.transform = 'scale(0.96) translateY(5px)';
+            banner.style.transform = 'scale(0.96)';
             
             setTimeout(() => {
                 currentIndex = (currentIndex + 1) % promos.length;
                 const p = promos[currentIndex];
                 
-                banner.className = `transition-all duration-700 ease-in-out p-6 md:p-8 rounded-3xl text-white text-center transform hover:scale-[1.03] hover:-translate-y-1.5 cursor-pointer relative overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.3)] border-2 border-white/30 ${p.gradient}`;
+                banner.className = `transition-all duration-700 ease-in-out p-6 md:p-8 rounded-3xl shadow-2xl text-white text-center transform hover:scale-[1.02] cursor-pointer border border-white/20 ${p.gradient}`;
                 
                 tag.textContent = p.tag;
                 title.textContent = p.title;
                 desc.textContent = p.desc;
                 
                 banner.style.opacity = '1';
-                banner.style.transform = 'scale(1) translateY(0)';
+                banner.style.transform = 'scale(1)';
             }, 350);
         }
 
