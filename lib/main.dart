@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
 import 'package:share_plus/share_plus.dart';
 
 void main() async {
@@ -67,7 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => isLoading = true);
     final prefs = await SharedPreferences.getInstance();
     
-    // ۱. بارگذاری تبلیغات فعال (فقط آنهایی که فعال هستند)
+    // ۱. بارگذاری تبلیغات فعال از پنل ادمین
     String? adsJson = prefs.getString('ads_list_json');
     List<Map<String, dynamic>> loadedAds = [];
     if (adsJson != null && adsJson.isNotEmpty) {
@@ -78,7 +79,6 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
     } else {
-      // پیش‌فرض اگر تبلیغی نبود
       loadedAds.add({'text': 'تبلیغات صرافی و خدمات ارزی', 'link': 'https://t.me/your_channel'});
     }
 
@@ -86,7 +86,6 @@ class _HomeScreenState extends State<HomeScreen> {
       activeAds = loadedAds;
     });
 
-    // خواندن سرعت چرخش اسلایدر از تنظیمات ادمین (پیش‌فرض ۴ ثانیه)
     int adDurationSeconds = prefs.getInt('ad_duration_seconds') ?? 4;
 
     _adTimer?.cancel();
@@ -103,31 +102,56 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     }
 
-    // ۲. بارگذاری نرخ‌ها (اولویت با نرخ‌های ثبت‌شده توسط ادمین برای تطابق ۱۰۰٪ با بانک مرکزی)
+    // ساخت زمان و تاریخ دقیق و به‌روزِ همین لحظه گوشی
+    String currentFormattedTime = "${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')} ${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}:${DateTime.now().second.toString().padLeft(2, '0')}";
+
+    // ۲. دریافت نرخ‌ها به صورت آنلاین
     try {
-      String? savedRates = prefs.getString('custom_rates_json');
-      if (savedRates != null && savedRates.isNotEmpty) {
+      final response = await http
+          .get(Uri.parse('https://raw.githubusercontent.com/shahzada-rates/app/main/assets/rates.json'))
+          .timeout(const Duration(seconds: 6));
+      
+      if (response.statusCode == 200) {
+        final onlineData = json.decode(response.body);
+        // جایگزینی تاریخ سرور با زمان دقیق و زنده فعلی گوشی برای جلوگیری از خطای تاریخ قدیمی
+        onlineData['last_updated'] = currentFormattedTime;
+        
         setState(() {
-          fullData = json.decode(savedRates);
+          fullData = onlineData;
+          isLoading = false;
+        });
+        prefs.setString('cached_rates_json', json.encode(onlineData));
+        return;
+      }
+    } catch (_) {}
+
+    // استفاده از حافظه موقت در صورت آفلاین بودن
+    try {
+      String? cachedJson = prefs.getString('cached_rates_json');
+      if (cachedJson != null && cachedJson.isNotEmpty) {
+        Map<String, dynamic> cachedData = json.decode(cachedJson);
+        cachedData['last_updated'] = currentFormattedTime;
+        setState(() {
+          fullData = cachedData;
           isLoading = false;
         });
         return;
       }
 
-      // در غیر این صورت فایل پیش‌فرض
       final String jsonString = await rootBundle.loadString('assets/rates.json');
+      Map<String, dynamic> localData = json.decode(jsonString);
+      localData['last_updated'] = currentFormattedTime;
       setState(() {
-        fullData = json.decode(jsonString);
+        fullData = localData;
         isLoading = false;
       });
     } catch (e) {
-      // داده پیش‌فرض استاندارد در صورت بروز خطا
       setState(() {
         fullData = {
-          "last_updated": "${DateTime.now().year}-${DateTime.now().month}-${DateTime.now().day} ${DateTime.now().hour}:${DateTime.now().minute}",
+          "last_updated": currentFormattedTime,
           "rates": [
             {"currency": "USD (دلار)", "buy": "64.53", "sell": "64.73", "unit": "AFN"},
-            {"currency": "EUR (یورو)", "buy": "73.50", "sell": "74.10", "unit": "AFN"},
+            {"currency": "EUR (یورو)", "buy": "73.50", "sell": "74.10", "unit": "AFN"}
           ]
         };
         isLoading = false;
@@ -149,7 +173,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    String lastUpdated = fullData['last_updated']?.toString() ?? 'بروز';
+    String lastUpdated = fullData['last_updated']?.toString() ?? '';
     List ratesList = fullData['rates'] is List ? fullData['rates'] : [];
 
     return Scaffold(
@@ -329,7 +353,6 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
   }
 }
 
-// پنل مدیریت پیشرفته با قابلیت ادیت نرخ‌ها، تبلیغات نامحدود با دکمه حذف، و تعیین زمان چرخش
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
 
@@ -341,14 +364,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   int totalAppOpens = 0;
   bool isLoading = true;
 
-  // لیست پویا برای تبلیغات نامحدود
   List<Map<String, dynamic>> adsList = [];
-  
-  // کنترل‌کننده زمان چرخش اسلایدر
   final TextEditingController _durationController = TextEditingController(text: '4');
-
-  // لیست نرخ‌ها برای ویرایش آنی جهت تطابق با بانک مرکزی
-  List<Map<String, dynamic>> ratesList = [];
 
   @override
   void initState() {
@@ -362,30 +379,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     int duration = prefs.getInt('ad_duration_seconds') ?? 4;
     _durationController.text = duration.toString();
 
-    // بارگذاری تبلیغات ذخیره‌شده
     String? adsJson = prefs.getString('ads_list_json');
     if (adsJson != null && adsJson.isNotEmpty) {
       List decoded = json.decode(adsJson);
       adsList = decoded.map((e) => Map<String, dynamic>.from(e)).toList();
     } else {
-      // پیش‌فرض یک تبلیغ
       adsList = [
         {'text': 'تبلیغ اول صرافی', 'link': 'https://t.me/your_channel', 'active': true}
-      ];
-    }
-
-    // بارگذاری نرخ‌ها برای ویرایش
-    String? ratesJson = prefs.getString('custom_rates_json');
-    if (ratesJson != null && ratesJson.isNotEmpty) {
-      Map<String, dynamic> data = json.decode(ratesJson);
-      ratesList = List<Map<String, dynamic>>.from(data['rates'] ?? []);
-    } else {
-      // نرخ‌های پیش‌فرض
-      ratesList = [
-        {"currency": "USD (دلار)", "buy": "64.53", "sell": "64.73", "unit": "AFN"},
-        {"currency": "EUR (یورو)", "buy": "73.50", "sell": "74.10", "unit": "AFN"},
-        {"currency": "طلا (یک گرم عیار ۷۵۰)", "buy": "4500", "sell": "4550", "unit": "AFN"},
-        {"currency": "طلا (یک مثقال عیار ۷۵۰)", "buy": "20700", "sell": "20900", "unit": "AFN"},
       ];
     }
 
@@ -397,25 +397,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   Future<void> saveAllSettings() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // ۱. ذخیره لیست تبلیغات نامحدود
     await prefs.setString('ads_list_json', json.encode(adsList));
-
-    // ۲. ذخیره زمان چرخش اسلایدر
     int duration = int.tryParse(_durationController.text.trim()) ?? 4;
     await prefs.setInt('ad_duration_seconds', duration);
 
-    // ۳. ذخیره نرخ‌های جدید همراه با تاریخ و ساعت دقیق فعلی
-    String nowFormatted = "${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')} ${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}:${DateTime.now().second.toString().padLeft(2, '0')}";
-    
-    Map<String, dynamic> newRatesData = {
-      "last_updated": nowFormatted,
-      "rates": ratesList
-    };
-    await prefs.setString('custom_rates_json', json.encode(newRatesData));
-
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تمامی تغییرات با موفقیت ذخیره و اعمال شد')),
+      const SnackBar(content: Text('تنظیمات تبلیغات با موفقیت ذخیره شد')),
     );
     Navigator.pop(context);
   }
@@ -436,13 +424,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('پنل مدیریت پیشرفته'),
+        title: const Text('پنل مدیریت تبلیغات و آمار'),
         backgroundColor: Colors.green[800],
         actions: [
           IconButton(
             icon: const Icon(Icons.save),
             onPressed: saveAllSettings,
-            tooltip: 'ذخیره کل تغییرات',
+            tooltip: 'ذخیره تغییرات',
           ),
         ],
       ),
@@ -451,7 +439,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           : ListView(
               padding: const EdgeInsets.all(16.0),
               children: [
-                // آمار کاربران
                 Card(
                   elevation: 3,
                   child: Padding(
@@ -467,65 +454,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   ),
                 ),
                 const SizedBox(height: 15),
-
-                // بخش مدیریت نرخ‌ها (تطابق کامل با بانک مرکزی و بازار)
-                Card(
-                  elevation: 3,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('مدیریت و ویرایش نرخ‌ها (تطابق با د افغانستان بانک)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green)),
-                          ],
-                        ),
-                        const Divider(),
-                        const Text('در این بخش می‌توانید نرخ خرید و فروش را مستقیماً ویرایش کنید تا دقیقاً مطابق نرخ روز بانک مرکزی یا بازار شود.', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                        const SizedBox(height: 10),
-                        ...List.generate(ratesList.length, (index) {
-                          var rate = ratesList[index];
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 10),
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8)),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(rate['currency'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                const SizedBox(height: 5),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: TextField(
-                                        controller: TextEditingController(text: rate['buy']),
-                                        onChanged: (val) => rate['buy'] = val,
-                                        decoration: const InputDecoration(labelText: 'نرخ خرید', border: OutlineInputBorder(), isDense: true),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: TextField(
-                                        controller: TextEditingController(text: rate['sell']),
-                                        onChanged: (val) => rate['sell'] = val,
-                                        decoration: const InputDecoration(labelText: 'نرخ فروش', border: OutlineInputBorder(), isDense: true),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          );
-                        }),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 15),
-
-                // بخش مدیریت تبلیغات نامحدود + دکمه حذف و تنظیم زمان
                 Card(
                   elevation: 3,
                   child: Padding(
@@ -546,12 +474,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                           ],
                         ),
                         const Divider(),
-                        // تنظیم سرعت چرخش
                         TextField(
                           controller: _durationController,
                           keyboardType: TextInputType.number,
                           decoration: const InputDecoration(
-                            labelText: 'زمان تغییر تبلیغات در اسلایدر (به ثانیه، مثلاً ۴)',
+                            labelText: 'زمان تغییر تبلیغات در اسلایدر (به ثانیه)',
                             border: OutlineInputBorder(),
                             isDense: true,
                           ),
@@ -573,7 +500,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text('تبلیغ شماره ${index + 1}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    Text('بنر تبلیغاتی شماره ${index + 1}', style: const TextStyle(fontWeight: FontWeight.bold)),
                                     Row(
                                       children: [
                                         Switch(
@@ -620,7 +547,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     minimumSize: const Size.fromHeight(50),
                   ),
                   onPressed: saveAllSettings,
-                  child: const Text('ذخیره نهایی تغییرات', style: TextStyle(fontSize: 18, color: Colors.white)),
+                  child: const Text('ذخیره تغییرات', style: TextStyle(fontSize: 18, color: Colors.white)),
                 ),
               ],
             ),
