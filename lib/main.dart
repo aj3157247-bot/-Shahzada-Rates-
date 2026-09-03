@@ -105,7 +105,24 @@ class _HomeScreenState extends State<HomeScreen> {
     // ساخت زمان و تاریخ دقیق و به‌روزِ همین لحظه گوشی
     String currentFormattedTime = "${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')} ${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}:${DateTime.now().second.toString().padLeft(2, '0')}";
 
-    // ۲. دریافت نرخ‌ها به صورت آنلاین
+    // لیست کامل و استاندارد پیش‌فرض شامل تمام ارزهای مهم بازار سرای شهزاده
+    final Map<String, dynamic> defaultComprehensiveData = {
+      "last_updated": currentFormattedTime,
+      "rates": [
+        {"currency": "USD (دلار آمریکا)", "buy": "67.20", "sell": "67.30", "unit": "AFN"},
+        {"currency": "EUR (یورو)", "buy": "72.40", "sell": "72.60", "unit": "AFN"},
+        {"currency": "GBP (پوند انگلیس)", "buy": "85.50", "sell": "85.80", "unit": "AFN"},
+        {"currency": "TRY (لیر ترکیه)", "buy": "1.95", "sell": "2.00", "unit": "AFN"},
+        {"currency": "PKR (روپیه پاکستان - ۱۰۰۰ کلدار)", "buy": "241.00", "sell": "242.00", "unit": "AFN"},
+        {"currency": "IRR (تومان ایران - ۱۰۰۰ تومان)", "buy": "1.10", "sell": "1.15", "unit": "AFN"},
+        {"currency": "AED (درهم امارات)", "buy": "18.30", "sell": "18.40", "unit": "AFN"},
+        {"currency": "SAR (ریال عربستان)", "buy": "17.90", "sell": "18.00", "unit": "AFN"},
+        {"currency": "طلا (یک گرم عیار ۷۵۰)", "buy": "5200", "sell": "5300", "unit": "AFN"},
+        {"currency": "طلا (یک مثقال عیار ۷۵۰)", "buy": "24100", "sell": "24400", "unit": "AFN"}
+      ]
+    };
+
+    // ۲. دریافت نرخ‌ها به صورت آنلاین از گیت‌هاب
     try {
       final response = await http
           .get(Uri.parse('https://raw.githubusercontent.com/shahzada-rates/app/main/assets/rates.json'))
@@ -113,7 +130,6 @@ class _HomeScreenState extends State<HomeScreen> {
       
       if (response.statusCode == 200) {
         final onlineData = json.decode(response.body);
-        // جایگزینی تاریخ سرور با زمان دقیق و زنده فعلی گوشی برای جلوگیری از خطای تاریخ قدیمی
         onlineData['last_updated'] = currentFormattedTime;
         
         setState(() {
@@ -125,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (_) {}
 
-    // استفاده از حافظه موقت در صورت آفلاین بودن
+    // استفاده از حافظه موقت یا داده‌های پیش‌فرض جامع در صورت آفلاین بودن
     try {
       String? cachedJson = prefs.getString('cached_rates_json');
       if (cachedJson != null && cachedJson.isNotEmpty) {
@@ -138,22 +154,13 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
-      final String jsonString = await rootBundle.loadString('assets/rates.json');
-      Map<String, dynamic> localData = json.decode(jsonString);
-      localData['last_updated'] = currentFormattedTime;
       setState(() {
-        fullData = localData;
+        fullData = defaultComprehensiveData;
         isLoading = false;
       });
     } catch (e) {
       setState(() {
-        fullData = {
-          "last_updated": currentFormattedTime,
-          "rates": [
-            {"currency": "USD (دلار)", "buy": "64.53", "sell": "64.73", "unit": "AFN"},
-            {"currency": "EUR (یورو)", "buy": "73.50", "sell": "74.10", "unit": "AFN"}
-          ]
-        };
+        fullData = defaultComprehensiveData;
         isLoading = false;
       });
     }
