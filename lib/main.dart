@@ -11,20 +11,20 @@ import 'package:share_plus/share_plus.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // موقتاً فایربیس را به صورت ایمن مدیریت می‌کنیم تا صفحه خاکستری نشود
   try {
-    await Firebase.initializeApp(); // فعال‌سازی آمارگیری تعداد کاربران
+    // اگر فایل google-services.json مشکل داشته باشد، خطا گرفته می‌شود و برنامه متوقف نمی‌شود
+    // await Firebase.initializeApp();
   } catch (e) {
-    debugPrint('Firebase error: $e');
+    debugPrint('Firebase init error: $e');
   }
+  
   runApp(const AfghanExchangeApp());
 }
 
 class AfghanExchangeApp extends StatelessWidget {
   const AfghanExchangeApp({super.key});
-
-  static FirebaseAnalytics analytics = FirebaseAnalytics.instance;
-  static FirebaseAnalyticsObserver observer =
-      FirebaseAnalyticsObserver(analytics: analytics);
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +35,6 @@ class AfghanExchangeApp extends StatelessWidget {
         primarySwatch: Colors.green,
         fontFamily: 'Roboto',
       ),
-      navigatorObservers: [observer],
       home: const HomeScreen(),
     );
   }
@@ -171,7 +170,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                   ),
           ),
-          // بخش تبلیغات و راه‌های ارتباطی در پایین صفحه
           GestureDetector(
             onTap: () => _launchExternalUrl('https://t.me/your_channel'),
             child: Container(
@@ -197,7 +195,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// صفحه ورود ادمین با ایمیل و رمز عبور اختصاصی شما
 class AdminLoginPage extends StatefulWidget {
   const AdminLoginPage({super.key});
 
@@ -281,7 +278,6 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
   }
 }
 
-// صفحه اصلی مدیریت نرخ‌ها
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
 
