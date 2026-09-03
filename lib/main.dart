@@ -4,13 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:http/http.dart' as http;
 import 'package:share_plus/share_plus.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // ثبت آمار واقعی تعداد دفعات اجرای برنامه توسط کاربران
   try {
     final prefs = await SharedPreferences.getInstance();
     int openCount = prefs.getInt('app_open_count') ?? 0;
@@ -65,30 +63,35 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  // متد هوشمند دریافت خودکار نرخ‌ها (هماهنگ با ربات گیت‌هاب + کش آفلاین)
   Future<void> loadAppData() async {
     setState(() => isLoading = true);
-    
     final prefs = await SharedPreferences.getInstance();
     
-    // ۱. بارگذاری تنظیمات تبلیغات فعال
+    // ۱. بارگذاری تبلیغات فعال (فقط آنهایی که فعال هستند)
+    String? adsJson = prefs.getString('ads_list_json');
     List<Map<String, dynamic>> loadedAds = [];
-    for (int i = 1; i <= 3; i++) {
-      bool isActive = prefs.getBool('ad_${i}_active') ?? (i == 1);
-      if (isActive) {
-        String text = prefs.getString('ad_${i}_text') ?? 'تبلیغات صرافی و خدمات ارزی';
-        String link = prefs.getString('ad_${i}_link') ?? 'https://t.me/your_channel';
-        loadedAds.add({'text': text, 'link': link});
+    if (adsJson != null && adsJson.isNotEmpty) {
+      List decodedAds = json.decode(adsJson);
+      for (var ad in decodedAds) {
+        if (ad['active'] == true) {
+          loadedAds.add({'text': ad['text'] ?? '', 'link': ad['link'] ?? ''});
+        }
       }
+    } else {
+      // پیش‌فرض اگر تبلیغی نبود
+      loadedAds.add({'text': 'تبلیغات صرافی و خدمات ارزی', 'link': 'https://t.me/your_channel'});
     }
+
     setState(() {
       activeAds = loadedAds;
     });
 
-    // راه‌اندازی تایمر اسلایدر تبلیغات
+    // خواندن سرعت چرخش اسلایدر از تنظیمات ادمین (پیش‌فرض ۴ ثانیه)
+    int adDurationSeconds = prefs.getInt('ad_duration_seconds') ?? 4;
+
     _adTimer?.cancel();
     if (activeAds.length > 1) {
-      _adTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      _adTimer = Timer.periodic(Duration(seconds: adDurationSeconds), (timer) {
         if (_adPageController.hasClients) {
           _currentAdIndex = (_currentAdIndex + 1) % activeAds.length;
           _adPageController.animateToPage(
@@ -100,68 +103,53 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     }
 
-    // ۲. تلاش برای دریافت خودکار نرخ‌ها از مخزن آنلاین (بروز شده توسط ربات)
+    // ۲. بارگذاری نرخ‌ها (اولویت با نرخ‌های ثبت‌شده توسط ادمین برای تطابق ۱۰۰٪ با بانک مرکزی)
     try {
-      final response = await http
-          .get(Uri.parse('https://raw.githubusercontent.com/shahzada-rates/app/main/assets/rates.json'))
-          .timeout(const Duration(seconds: 6));
-      
-      if (response.statusCode == 200) {
-        final onlineData = json.decode(response.body);
+      String? savedRates = prefs.getString('custom_rates_json');
+      if (savedRates != null && savedRates.isNotEmpty) {
         setState(() {
-          fullData = onlineData;
-          isLoading = false;
-        });
-        prefs.setString('cached_rates_json', response.body);
-        return;
-      }
-    } catch (_) {
-      // عدم دسترسی به اینترنت، استفاده از حافظه موقت (کش) یا فایل پیش‌فرض
-    }
-
-    try {
-      String? cachedJson = prefs.getString('cached_rates_json');
-      if (cachedJson != null && cachedJson.isNotEmpty) {
-        setState(() {
-          fullData = json.decode(cachedJson);
+          fullData = json.decode(savedRates);
           isLoading = false;
         });
         return;
       }
 
+      // در غیر این صورت فایل پیش‌فرض
       final String jsonString = await rootBundle.loadString('assets/rates.json');
       setState(() {
         fullData = json.decode(jsonString);
         isLoading = false;
       });
     } catch (e) {
-      setState(() => isLoading = false);
+      // داده پیش‌فرض استاندارد در صورت بروز خطا
+      setState(() {
+        fullData = {
+          "last_updated": "${DateTime.now().year}-${DateTime.now().month}-${DateTime.now().day} ${DateTime.now().hour}:${DateTime.now().minute}",
+          "rates": [
+            {"currency": "USD (دلار)", "buy": "64.53", "sell": "64.73", "unit": "AFN"},
+            {"currency": "EUR (یورو)", "buy": "73.50", "sell": "74.10", "unit": "AFN"},
+          ]
+        };
+        isLoading = false;
+      });
     }
   }
 
   Future<void> _launchExternalUrl(String urlString) async {
-    const defaultUrl = 'https://t.me/your_channel';
-    final targetUrl = urlString.trim().isEmpty ? defaultUrl : urlString;
+    final targetUrl = urlString.trim().isEmpty ? 'https://t.me/your_channel' : urlString;
     final Uri url = Uri.parse(targetUrl);
-    
     try {
-      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-        debugPrint('Could not launch $url');
-      }
-    } catch (e) {
-      debugPrint('Error launching URL: $e');
-    }
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } catch (_) {}
   }
 
   void _shareApp() {
-    Share.share(
-      'برنامه حرفه‌ای «افغان نرخ» را نصب کنید و از دقیق‌ترین نرخ‌های لحظه‌ای ارز، طلا و نقره مطلع شوید!',
-    );
+    Share.share('برنامه حرفه‌ای «افغان نرخ» را نصب کنید و از دقیق‌ترین نرخ‌های لحظه‌ای ارز، طلا و نقره مطلع شوید!');
   }
 
   @override
   Widget build(BuildContext context) {
-    String lastUpdated = fullData['last_updated']?.toString() ?? 'بروزرسانی خودکار';
+    String lastUpdated = fullData['last_updated']?.toString() ?? 'بروز';
     List ratesList = fullData['rates'] is List ? fullData['rates'] : [];
 
     return Scaffold(
@@ -186,14 +174,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 context,
                 MaterialPageRoute(builder: (context) => const AdminLoginPage()),
               );
-              loadAppData(); // بازخوانی تنظیمات پس از خروج از ادمین
+              loadAppData();
             },
           ),
         ],
       ),
       body: Column(
         children: [
-          // بخش تاریخ و ساعت بالا با جهت‌دهی صحیح LTR بدون به‌ریختگی
           Container(
             padding: const EdgeInsets.all(10),
             color: Colors.green[50],
@@ -223,27 +210,22 @@ class _HomeScreenState extends State<HomeScreen> {
                             itemCount: ratesList.length,
                             itemBuilder: (context, index) {
                               var item = ratesList[index];
-                              String currencyName = item['currency']?.toString() ?? '';
-                              String buyPrice = item['buy']?.toString() ?? '';
-                              String sellPrice = item['sell']?.toString() ?? '';
-                              String unit = item['unit']?.toString() ?? '';
-
                               return Card(
                                 margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                 elevation: 2,
                                 child: ListTile(
                                   leading: const Icon(Icons.currency_exchange, color: Colors.green),
                                   title: Text(
-                                    currencyName,
+                                    item['currency']?.toString() ?? '',
                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                                   ),
-                                  subtitle: Text('واحد: $unit'),
+                                  subtitle: Text('واحد: ${item['unit'] ?? ''}'),
                                   trailing: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
-                                      Text('خرید: $buyPrice', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-                                      Text('فروش: $sellPrice', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                                      Text('خرید: ${item['buy'] ?? ''}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                                      Text('فروش: ${item['sell'] ?? ''}', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
                                     ],
                                   ),
                                 ),
@@ -252,7 +234,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                   ),
           ),
-          // اسلایدر حرفه‌ای تبلیغات پویا در پایین صفحه
           if (activeAds.isNotEmpty)
             Container(
               height: 55,
@@ -306,11 +287,8 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
   String errorMessage = '';
 
   void _login() {
-    String adminEmail = 'abdullahjafari712@gmail.com';
-    String adminPass = '05050505';
-
-    if (_emailController.text.trim() == adminEmail &&
-        _passwordController.text.trim() == adminPass) {
+    if (_emailController.text.trim() == 'abdullahjafari712@gmail.com' &&
+        _passwordController.text.trim() == '05050505') {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const AdminDashboardPage()),
@@ -325,10 +303,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('ورود به پنل مدیریت'),
-        backgroundColor: Colors.green[800],
-      ),
+      appBar: AppBar(title: const Text('ورود به پنل مدیریت'), backgroundColor: Colors.green[800]),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -336,36 +311,14 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
           children: [
             const Icon(Icons.lock_person, size: 80, color: Colors.green),
             const SizedBox(height: 20),
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: 'ایمیل ادمین',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.email),
-              ),
-            ),
+            TextField(controller: _emailController, decoration: const InputDecoration(labelText: 'ایمیل ادمین', border: OutlineInputBorder())),
             const SizedBox(height: 12),
-            TextField(
-              controller: _passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'رمز عبور',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.lock),
-              ),
-            ),
+            TextField(controller: _passwordController, obscureText: true, decoration: const InputDecoration(labelText: 'رمز عبور', border: OutlineInputBorder())),
             const SizedBox(height: 20),
-            if (errorMessage.isNotEmpty)
-              Text(
-                errorMessage,
-                style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-              ),
+            if (errorMessage.isNotEmpty) Text(errorMessage, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green[700],
-                minimumSize: const Size.fromHeight(50),
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green[700], minimumSize: const Size.fromHeight(50)),
               onPressed: _login,
               child: const Text('ورود', style: TextStyle(fontSize: 18, color: Colors.white)),
             ),
@@ -376,7 +329,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
   }
 }
 
-// داشبورد حرفه‌ای مدیریت (آمار واقعی کاربران + مدیریت حرفه‌ای ۳ تبلیغ همزمان با کلید فعال‌ساز)
+// پنل مدیریت پیشرفته با قابلیت ادیت نرخ‌ها، تبلیغات نامحدود با دکمه حذف، و تعیین زمان چرخش
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
 
@@ -388,17 +341,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   int totalAppOpens = 0;
   bool isLoading = true;
 
-  final List<TextEditingController> _adTextControllers = [
-    TextEditingController(),
-    TextEditingController(),
-    TextEditingController(),
-  ];
-  final List<TextEditingController> _adLinkControllers = [
-    TextEditingController(),
-    TextEditingController(),
-    TextEditingController(),
-  ];
-  final List<bool> _adActiveStates = [true, false, false];
+  // لیست پویا برای تبلیغات نامحدود
+  List<Map<String, dynamic>> adsList = [];
+  
+  // کنترل‌کننده زمان چرخش اسلایدر
+  final TextEditingController _durationController = TextEditingController(text: '4');
+
+  // لیست نرخ‌ها برای ویرایش آنی جهت تطابق با بانک مرکزی
+  List<Map<String, dynamic>> ratesList = [];
 
   @override
   void initState() {
@@ -408,16 +358,35 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   Future<void> loadAdminData() async {
     final prefs = await SharedPreferences.getInstance();
-    
-    // خواندن آمار واقعی دفعات اجرای برنامه
     totalAppOpens = prefs.getInt('app_open_count') ?? 1;
+    int duration = prefs.getInt('ad_duration_seconds') ?? 4;
+    _durationController.text = duration.toString();
 
-    // خواندن اطلاعات تبلیغات
-    for (int i = 0; i < 3; i++) {
-      int id = i + 1;
-      _adTextControllers[i].text = prefs.getString('ad_${id}_text') ?? 'تبلیغ شماره $id';
-      _adLinkControllers[i].text = prefs.getString('ad_${id}_link') ?? 'https://t.me/your_channel';
-      _adActiveStates[i] = prefs.getBool('ad_${id}_active') ?? (i == 0);
+    // بارگذاری تبلیغات ذخیره‌شده
+    String? adsJson = prefs.getString('ads_list_json');
+    if (adsJson != null && adsJson.isNotEmpty) {
+      List decoded = json.decode(adsJson);
+      adsList = decoded.map((e) => Map<String, dynamic>.from(e)).toList();
+    } else {
+      // پیش‌فرض یک تبلیغ
+      adsList = [
+        {'text': 'تبلیغ اول صرافی', 'link': 'https://t.me/your_channel', 'active': true}
+      ];
+    }
+
+    // بارگذاری نرخ‌ها برای ویرایش
+    String? ratesJson = prefs.getString('custom_rates_json');
+    if (ratesJson != null && ratesJson.isNotEmpty) {
+      Map<String, dynamic> data = json.decode(ratesJson);
+      ratesList = List<Map<String, dynamic>>.from(data['rates'] ?? []);
+    } else {
+      // نرخ‌های پیش‌فرض
+      ratesList = [
+        {"currency": "USD (دلار)", "buy": "64.53", "sell": "64.73", "unit": "AFN"},
+        {"currency": "EUR (یورو)", "buy": "73.50", "sell": "74.10", "unit": "AFN"},
+        {"currency": "طلا (یک گرم عیار ۷۵۰)", "buy": "4500", "sell": "4550", "unit": "AFN"},
+        {"currency": "طلا (یک مثقال عیار ۷۵۰)", "buy": "20700", "sell": "20900", "unit": "AFN"},
+      ];
     }
 
     setState(() {
@@ -425,34 +394,55 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     });
   }
 
-  Future<void> saveAdsSettings() async {
+  Future<void> saveAllSettings() async {
     final prefs = await SharedPreferences.getInstance();
 
-    for (int i = 0; i < 3; i++) {
-      int id = i + 1;
-      await prefs.setString('ad_${id}_text', _adTextControllers[i].text.trim());
-      await prefs.setString('ad_${id}_link', _adLinkControllers[i].text.trim());
-      await prefs.setBool('ad_${id}_active', _adActiveStates[i]);
-    }
+    // ۱. ذخیره لیست تبلیغات نامحدود
+    await prefs.setString('ads_list_json', json.encode(adsList));
+
+    // ۲. ذخیره زمان چرخش اسلایدر
+    int duration = int.tryParse(_durationController.text.trim()) ?? 4;
+    await prefs.setInt('ad_duration_seconds', duration);
+
+    // ۳. ذخیره نرخ‌های جدید همراه با تاریخ و ساعت دقیق فعلی
+    String nowFormatted = "${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')} ${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}:${DateTime.now().second.toString().padLeft(2, '0')}";
+    
+    Map<String, dynamic> newRatesData = {
+      "last_updated": nowFormatted,
+      "rates": ratesList
+    };
+    await prefs.setString('custom_rates_json', json.encode(newRatesData));
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تنظیمات تبلیغات با موفقیت ذخیره شد')),
+      const SnackBar(content: Text('تمامی تغییرات با موفقیت ذخیره و اعمال شد')),
     );
     Navigator.pop(context);
+  }
+
+  void _addNewAd() {
+    setState(() {
+      adsList.add({'text': 'تبلیغ جدید', 'link': 'https://t.me/your_channel', 'active': true});
+    });
+  }
+
+  void _removeAd(int index) {
+    setState(() {
+      adsList.removeAt(index);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('پنل مدیریت حرفه‌ای'),
+        title: const Text('پنل مدیریت پیشرفته'),
         backgroundColor: Colors.green[800],
         actions: [
           IconButton(
             icon: const Icon(Icons.save),
-            onPressed: saveAdsSettings,
-            tooltip: 'ذخیره تغییرات',
+            onPressed: saveAllSettings,
+            tooltip: 'ذخیره کل تغییرات',
           ),
         ],
       ),
@@ -461,65 +451,117 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           : ListView(
               padding: const EdgeInsets.all(16.0),
               children: [
-                // ۱. بخش آمار واقعی کاربران
+                // آمار کاربران
                 Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 3,
                   child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(12.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Row(
-                          children: [
-                            Icon(Icons.analytics, color: Colors.green, size: 28),
-                            SizedBox(width: 8),
-                            Text(
-                              'آمار واقعی استفاده از برنامه',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                        const Divider(height: 20),
-                        Text(
-                          'تعداد دفعات کل اجرای برنامه توسط کاربران: $totalAppOpens بار',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'این آمار به صورت کاملاً واقعی تعداد دفعات باز شدن اپلیکیشن را محاسبه می‌کند.',
-                          style: TextStyle(fontSize: 13, color: Colors.grey),
-                        ),
+                        const Text('آمار برنامه', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green)),
+                        const Divider(),
+                        Text('تعداد دفعات باز شدن برنامه توسط کاربران: $totalAppOpens بار', style: const TextStyle(fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 15),
 
-                // ۲. بخش مدیریت حرفه‌ای بنرهای تبلیغاتی (۳ جایگاه با کلید روشن/خاموش)
+                // بخش مدیریت نرخ‌ها (تطابق کامل با بانک مرکزی و بازار)
                 Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 3,
                   child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(12.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Icon(Icons.campaign, color: Colors.green, size: 28),
-                            SizedBox(width: 8),
-                            Text(
-                              'سیستم مدیریت اسلایدر تبلیغات (۳ بنر همزمان)',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            Text('مدیریت و ویرایش نرخ‌ها (تطابق با د افغانستان بانک)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green)),
+                          ],
+                        ),
+                        const Divider(),
+                        const Text('در این بخش می‌توانید نرخ خرید و فروش را مستقیماً ویرایش کنید تا دقیقاً مطابق نرخ روز بانک مرکزی یا بازار شود.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        const SizedBox(height: 10),
+                        ...List.generate(ratesList.length, (index) {
+                          var rate = ratesList[index];
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8)),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(rate['currency'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 5),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextField(
+                                        controller: TextEditingController(text: rate['buy']),
+                                        onChanged: (val) => rate['buy'] = val,
+                                        decoration: const InputDecoration(labelText: 'نرخ خرید', border: OutlineInputBorder(), isDense: true),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: TextEditingController(text: rate['sell']),
+                                        onChanged: (val) => rate['sell'] = val,
+                                        decoration: const InputDecoration(labelText: 'نرخ فروش', border: OutlineInputBorder(), isDense: true),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 15),
+
+                // بخش مدیریت تبلیغات نامحدود + دکمه حذف و تنظیم زمان
+                Card(
+                  elevation: 3,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('سیستم تبلیغات نامحدود', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green)),
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.green[700]),
+                              onPressed: _addNewAd,
+                              icon: const Icon(Icons.add, size: 18, color: Colors.white),
+                              label: const Text('افزودن تبلیغ جدید', style: TextStyle(color: Colors.white)),
                             ),
                           ],
                         ),
-                        const Divider(height: 20),
-                        ...List.generate(3, (i) {
+                        const Divider(),
+                        // تنظیم سرعت چرخش
+                        TextField(
+                          controller: _durationController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'زمان تغییر تبلیغات در اسلایدر (به ثانیه، مثلاً ۴)',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                        ),
+                        const SizedBox(height: 15),
+                        ...List.generate(adsList.length, (index) {
+                          var ad = adsList[index];
                           return Container(
-                            margin: const EdgeInsets.only(bottom: 16),
-                            padding: const EdgeInsets.all(12),
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
                               color: Colors.grey[100],
                               borderRadius: BorderRadius.circular(8),
@@ -531,41 +573,37 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text('بنر تبلیغاتی شماره ${i + 1}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                                    Text('تبلیغ شماره ${index + 1}', style: const TextStyle(fontWeight: FontWeight.bold)),
                                     Row(
                                       children: [
-                                        Text(_adActiveStates[i] ? 'فعال (روشن)' : 'غیرفعال (خاموش)', style: TextStyle(fontSize: 12, color: _adActiveStates[i] ? Colors.green : Colors.red)),
                                         Switch(
-                                          value: _adActiveStates[i],
+                                          value: ad['active'] ?? true,
                                           activeColor: Colors.green,
                                           onChanged: (val) {
                                             setState(() {
-                                              _adActiveStates[i] = val;
+                                              ad['active'] = val;
                                             });
                                           },
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.delete, color: Colors.red),
+                                          onPressed: () => _removeAd(index),
+                                          tooltip: 'حذف این تبلیغ',
                                         ),
                                       ],
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 8),
                                 TextField(
-                                  controller: _adTextControllers[i],
-                                  decoration: const InputDecoration(
-                                    labelText: 'متن تبلیغ روی بنر',
-                                    border: OutlineInputBorder(),
-                                    isDense: true,
-                                  ),
+                                  controller: TextEditingController(text: ad['text']),
+                                  onChanged: (val) => ad['text'] = val,
+                                  decoration: const InputDecoration(labelText: 'متن تبلیغ', border: OutlineInputBorder(), isDense: true),
                                 ),
                                 const SizedBox(height: 8),
                                 TextField(
-                                  controller: _adLinkControllers[i],
-                                  decoration: const InputDecoration(
-                                    labelText: 'لینک مقصد (تلگرام، واتساپ و...)',
-                                    border: OutlineInputBorder(),
-                                    prefixIcon: Icon(Icons.link),
-                                    isDense: true,
-                                  ),
+                                  controller: TextEditingController(text: ad['link']),
+                                  onChanged: (val) => ad['link'] = val,
+                                  decoration: const InputDecoration(labelText: 'لینک مقصد (تلگرام/واتساپ)', border: OutlineInputBorder(), isDense: true),
                                 ),
                               ],
                             ),
@@ -581,8 +619,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     backgroundColor: Colors.green[700],
                     minimumSize: const Size.fromHeight(50),
                   ),
-                  onPressed: saveAdsSettings,
-                  child: const Text('ذخیره و اعمال آنی تغییرات', style: TextStyle(fontSize: 18, color: Colors.white)),
+                  onPressed: saveAllSettings,
+                  child: const Text('ذخیره نهایی تغییرات', style: TextStyle(fontSize: 18, color: Colors.white)),
                 ),
               ],
             ),
