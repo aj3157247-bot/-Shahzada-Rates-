@@ -43,15 +43,23 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   Map<String, dynamic> fullData = {};
   List<Map<String, dynamic>> activeAds = [];
   bool isLoading = true;
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this);
     loadAppData();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> loadAppData() async {
@@ -79,13 +87,12 @@ class _HomeScreenState extends State<HomeScreen> {
       activeAds = loadedAds;
     });
 
-    // ساخت زمان و تاریخ دقیق و به‌روزِ همین لحظه
     String currentFormattedTime = "${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')} ${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}:${DateTime.now().second.toString().padLeft(2, '0')}";
 
-    // لیست کامل و دقیق نرخ‌ها بر اساس بازار و د افغانستان بانک
-    final Map<String, dynamic> defaultComprehensiveData = {
+    // ساختار کاملاً تفکیک‌شده برای اسعار، انواع طلا و نقره جهانی/بازار
+    final Map<String, dynamic> defaultStructuredData = {
       "last_updated": currentFormattedTime,
-      "rates": [
+      "currencies": [
         {"currency": "USD (دلار آمریکا)", "buy": "64.54", "sell": "64.74", "unit": "AFN"},
         {"currency": "EUR (یورو)", "buy": "73.50", "sell": "74.10", "unit": "AFN"},
         {"currency": "GBP (پوند انگلیس)", "buy": "84.98", "sell": "85.78", "unit": "AFN"},
@@ -93,10 +100,19 @@ class _HomeScreenState extends State<HomeScreen> {
         {"currency": "PKR (روپیه پاکستان - ۱۰۰۰ کلدار)", "buy": "221.60", "sell": "229.60", "unit": "AFN"},
         {"currency": "IRR (تومان ایران - ۱۰۰۰ تومان)", "buy": "1.05", "sell": "1.12", "unit": "AFN"},
         {"currency": "AED (درهم امارات)", "buy": "17.32", "sell": "17.42", "unit": "AFN"},
-        {"currency": "SAR (ریال عربستان)", "buy": "16.82", "sell": "16.92", "unit": "AFN"},
-        {"currency": "طلا (یک گرم عیار ۷۵۰)", "buy": "5200", "sell": "5350", "unit": "AFN"},
-        {"currency": "طلا (یک مثقال عیار ۷۵۰)", "buy": "24100", "sell": "24500", "unit": "AFN"},
-        {"currency": "نقره (یک مثقال عیار خالص)", "buy": "450", "sell": "480", "unit": "AFN"}
+        {"currency": "SAR (ریال عربستان)", "buy": "16.82", "sell": "16.92", "unit": "AFN"}
+      ],
+      "gold_rates": [
+        {"currency": "طلای ایرانی (عیار ۷۵۰ - یک گرم)", "buy": "5300", "sell": "5450", "unit": "AFN"},
+        {"currency": "طلای بحرینی (عیار ۲۴ - یک گرم)", "buy": "5900", "sell": "6100", "unit": "AFN"},
+        {"currency": "طلای عربی (عیار ۲۱ - یک گرم)", "buy": "5550", "sell": "5700", "unit": "AFN"},
+        {"currency": "طلای متفرقه / عیار ۷۵۰ (یک گرم)", "buy": "5150", "sell": "5300", "unit": "AFN"},
+        {"currency": "طلای ۷۵۰ (یک مثقال)", "buy": "24100", "sell": "24500", "unit": "AFN"}
+      ],
+      "silver_rates": [
+        {"currency": "نقره جهانی (یک اونس)", "buy": "28.50", "sell": "29.20", "unit": "USD"},
+        {"currency": "نقره خالص (یک گرم)", "buy": "95", "sell": "110", "unit": "AFN"},
+        {"currency": "نقره خالص (یک مثقال)", "buy": "450", "sell": "480", "unit": "AFN"}
       ]
     };
 
@@ -119,7 +135,6 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (_) {}
 
-    // استفاده از حافظه موقت یا مقادیر پیش‌فرض دقیق
     try {
       String? cachedJson = prefs.getString('cached_rates_json');
       if (cachedJson != null && cachedJson.isNotEmpty) {
@@ -133,12 +148,12 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       setState(() {
-        fullData = defaultComprehensiveData;
+        fullData = defaultStructuredData;
         isLoading = false;
       });
     } catch (e) {
       setState(() {
-        fullData = defaultComprehensiveData;
+        fullData = defaultStructuredData;
         isLoading = false;
       });
     }
@@ -154,19 +169,32 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _shareApp() {
     Share.share(
-      'برنامه حرفه‌ای «افغان نرخ» را نصب کنید و از دقیق‌ترین نرخ‌های لحظه‌ای ارز، طلا و نقره مطلع شوید!\n\nلینک دانلود برنامه:\nhttps://github.com/shahzada-rates/app'
+      'برنامه حرفه‌ای «افغان نرخ» را نصب کنید و از دقیق‌ترین نرخ‌های لحظه‌ای اسعار، انواع طلا و نقره مطلع شوید!\n\nلینک دانلود برنامه:\nhttps://github.com/shahzada-rates/app'
     );
   }
 
   @override
   Widget build(BuildContext context) {
     String lastUpdated = fullData['last_updated']?.toString() ?? '';
-    List ratesList = fullData['rates'] is List ? fullData['rates'] : [];
+    List currenciesList = fullData['currencies'] is List ? fullData['currencies'] : [];
+    List goldList = fullData['gold_rates'] is List ? fullData['gold_rates'] : [];
+    List silverList = fullData['silver_rates'] is List ? fullData['silver_rates'] : [];
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('افغان نرخ'),
         backgroundColor: Colors.green[700],
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          indicatorWeight: 3,
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          tabs: const [
+            Tab(text: 'نرخ اسعار', icon: Icon(Icons.currency_exchange, size: 20)),
+            Tab(text: 'انواع طلا', icon: Icon(Icons.monetization_on, size: 20)),
+            Tab(text: 'نقره جهانی و بازار', icon: Icon(Icons.shutter_speed, size: 20)),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -213,39 +241,15 @@ class _HomeScreenState extends State<HomeScreen> {
           Expanded(
             child: isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : RefreshIndicator(
-                    onRefresh: loadAppData,
-                    child: ratesList.isEmpty
-                        ? const Center(child: Text('نرخی موجود نیست'))
-                        : ListView.builder(
-                            itemCount: ratesList.length,
-                            itemBuilder: (context, index) {
-                              var item = ratesList[index];
-                              return Card(
-                                margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                elevation: 2,
-                                child: ListTile(
-                                  leading: const Icon(Icons.currency_exchange, color: Colors.green),
-                                  title: Text(
-                                    item['currency']?.toString() ?? '',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                                  ),
-                                  subtitle: Text('واحد: ${item['unit'] ?? ''}'),
-                                  trailing: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text('خرید: ${item['buy'] ?? ''}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-                                      Text('فروش: ${item['sell'] ?? ''}', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildRateListView(currenciesList, Icons.currency_exchange, Colors.green),
+                      _buildRateListView(goldList, Icons.monetization_on, Colors.amber[800]!),
+                      _buildRateListView(silverList, Icons.blur_on, Colors.blueGrey),
+                    ],
                   ),
           ),
-          // بخش تبلیغات با فضای بیشتر و متن متحرک (مارکویی روان)
           if (activeAds.isNotEmpty)
             Container(
               height: 65,
@@ -286,9 +290,43 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  Widget _buildRateListView(List items, IconData iconData, Color iconColor) {
+    if (items.isEmpty) {
+      return const Center(child: Text('نرخی موجود نیست'));
+    }
+    return RefreshIndicator(
+      onRefresh: loadAppData,
+      child: ListView.builder(
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          var item = items[index];
+          return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            elevation: 2,
+            child: ListTile(
+              leading: Icon(iconData, color: iconColor),
+              title: Text(
+                item['currency']?.toString() ?? '',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+              subtitle: Text('واحد پایه: ${item['unit'] ?? ''}'),
+              trailing: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('خرید: ${item['buy'] ?? ''}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                  Text('فروش: ${item['sell'] ?? ''}', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
 }
 
-// ویجت اختصاصی متن متحرک روان برای تبلیغات طولانی
 class MarqueeTickerText extends StatefulWidget {
   final String text;
   final TextStyle style;
@@ -301,7 +339,6 @@ class MarqueeTickerText extends StatefulWidget {
 
 class _MarqueeTickerTextState extends State<MarqueeTickerText> {
   late ScrollController _scrollController;
-  Timer? _timer;
 
   @override
   void initState() {
@@ -332,7 +369,6 @@ class _MarqueeTickerTextState extends State<MarqueeTickerText> {
 
   @override
   void dispose() {
-    _timer?.cancel();
     _scrollController.dispose();
     super.dispose();
   }
