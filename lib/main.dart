@@ -43,23 +43,46 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Map<String, dynamic> fullData = {};
   List<Map<String, dynamic>> activeAds = [];
   bool isLoading = true;
   late TabController _tabController;
+  late PageController _adPageController;
+  Timer? _adTimer;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _adPageController = PageController();
     loadAppData();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _adPageController.dispose();
+    _adTimer?.cancel();
     super.dispose();
+  }
+
+  // راه‌اندازی تایمر تغییر خودکار تبلیغات
+  void _startAdTimer() {
+    _adTimer?.cancel();
+    _adTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (activeAds.length > 1 && _adPageController.hasClients) {
+        int nextPage = (_adPageController.page?.round() ?? 0) + 1;
+        if (nextPage >= activeAds.length) {
+          nextPage = 0;
+        }
+        _adPageController.animateToPage(
+          nextPage,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
   }
 
   Future<void> loadAppData() async {
@@ -81,11 +104,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         'text': '📢 تبلیغات هزینه نیست، سرمایه است! برای نشر خدمات و صرافی خود با ما در تماس باشید.',
         'link': 'https://t.me/your_channel'
       });
+      loadedAds.add({
+        'text': '🌟 صرافی معتبر شما؛ انجام حوالجات بین‌المللی با بهترین نرخ و امنیت کامل.',
+        'link': 'https://t.me/your_channel'
+      });
     }
 
     setState(() {
       activeAds = loadedAds;
     });
+
+    // شروع چرخش خودکار تبلیغات
+    _startAdTimer();
 
     String currentFormattedTime = "${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')} ${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}:${DateTime.now().second.toString().padLeft(2, '0')}";
 
@@ -250,6 +280,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ],
                   ),
           ),
+          // بخش تبلیغات با چرخش خودکار (Auto-play PageView) و متن متحرک
           if (activeAds.isNotEmpty)
             Container(
               height: 65,
@@ -257,6 +288,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               color: Colors.green[100],
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: PageView.builder(
+                controller: _adPageController,
                 itemCount: activeAds.length,
                 itemBuilder: (context, index) {
                   var ad = activeAds[index];
