@@ -51,14 +51,13 @@ class _HomeScreenState extends State<HomeScreen> {
     'یورو': '76.00',
     'تومان ایران': '0.0011',
     'طلای یک عیار (گرام)': '4500'
-  }; // داده‌های پیش‌فرض امن برای اینکه صفحه خالی نماند
+  };
   bool isLoading = false;
   String errorMessage = '';
 
   @override
   void initState() {
     super.initState();
-    // بارگذاری امن بدون ارور دادن به برنامه
     loadRatesSafely();
   }
 
@@ -71,7 +70,6 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     } catch (e) {
-      // اگر فایل نبود، از همان داده‌های پیش‌فرض بالا استفاده می‌کند و ارور نمی‌دهد
       debugPrint('Asset load error: $e');
     }
   }
@@ -122,7 +120,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     itemBuilder: (context, index) {
                       String key = rates.keys.elementAt(index);
                       return ListTile(
-                        leading: const Icon(Icons.货币_exchange, color: Colors.green),
+                        leading: const Icon(Icons.currency_exchange, color: Colors.green),
                         title: Text(key, style: const TextStyle(fontWeight: FontWeight.bold)),
                         trailing: Text(rates[key].toString(), style: const TextStyle(fontSize: 16, color: Colors.black87)),
                       );
