@@ -102,10 +102,8 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     }
 
-    // ساخت زمان و تاریخ دقیق و به‌روزِ همین لحظه گوشی
     String currentFormattedTime = "${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')} ${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}:${DateTime.now().second.toString().padLeft(2, '0')}";
 
-    // لیست کامل و استاندارد پیش‌فرض شامل تمام ارزهای مهم بازار سرای شهزاده
     final Map<String, dynamic> defaultComprehensiveData = {
       "last_updated": currentFormattedTime,
       "rates": [
@@ -141,7 +139,6 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (_) {}
 
-    // استفاده از حافظه موقت یا داده‌های پیش‌فرض جامع در صورت آفلاین بودن
     try {
       String? cachedJson = prefs.getString('cached_rates_json');
       if (cachedJson != null && cachedJson.isNotEmpty) {
@@ -174,8 +171,11 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {}
   }
 
+  // اصلاح بخش اشتراک‌گذاری برای ارسال متن همراه با لینک دانلود برنامه
   void _shareApp() {
-    Share.share('برنامه حرفه‌ای «افغان نرخ» را نصب کنید و از دقیق‌ترین نرخ‌های لحظه‌ای ارز، طلا و نقره مطلع شوید!');
+    Share.share(
+      'برنامه حرفه‌ای «افغان نرخ» را نصب کنید و از دقیق‌ترین نرخ‌های لحظه‌ای ارز، طلا و نقره مطلع شوید!\n\nلینک دانلود برنامه:\nhttps://github.com/shahzada-rates/app'
+    );
   }
 
   @override
