@@ -5,10 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>دانلود اپلیکیشن افغان نرخ | نرخ لحظه‌ای دلار، یورو، تومان و اسعار در افغانستان</title>
     
+    <!-- متاتگ تایید گوگل سرچ کنسول -->
+    <meta name="google-site-verification" content="welLW9hTpZ8qAfjerwb6pyq_b8MmNqRIq5tvHujzTwE" />
+    
+    <!-- سئو و توضیحات موتورهای جستجو -->
     <meta name="description" content="اپلیکیشن حرفه‌ای افغان نرخ؛ مرجع دقیق و لحظه‌ای نرخ دلار، اسعار، طلا و نقره، تومان ایران و کلدار پاکستان در بازار افغانستان. دانلود رایگان برنامه اندروید.">
     <meta name="keywords" content="نرخ اسعار, نرخ دلار, نرخ دلار در کابل, قیمت تومان ایران, نرخ ارز افغانستان, افغان نرخ, صرافی های افغانستان, دانلود افغان نرخ">
     
+    <!-- لینک به فریم‌ورک استایل‌دهی Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- فونت وزیرمتن برای زیبایی متن‌های فارسی -->
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
     
     <style>
@@ -19,6 +25,7 @@
 </head>
 <body class="bg-gray-50 text-gray-800">
 
+    <!-- هدر سایت -->
     <header class="bg-green-700 text-white shadow-md">
         <div class="container mx-auto px-4 py-6 flex justify-between items-center">
             <div class="flex items-center space-x-3 space-x-reverse">
@@ -31,6 +38,7 @@
         </div>
     </header>
 
+    <!-- بخش اصلی (Hero Section) -->
     <section class="container mx-auto px-4 pt-12 pb-8 text-center">
         <div class="max-w-3xl mx-auto">
             <span class="bg-green-100 text-green-800 text-sm font-semibold px-3 py-1 rounded-full inline-block mb-4">دقیق‌ترین مرجع اسعار و طلا در افغانستان 🇦🇫</span>
@@ -43,6 +51,7 @@
         </div>
     </section>
 
+    <!-- 🌟 بخش تبلیغات و بنر پویا با تغییر رنگ جذاب و خودکار -->
     <div class="max-w-3xl mx-auto px-4 mb-12">
         <div id="promo-banner" class="transition-all duration-700 ease-in-out p-6 md:p-8 rounded-3xl shadow-2xl text-white text-center transform hover:scale-[1.02] cursor-pointer bg-gradient-to-r from-emerald-600 via-teal-700 to-green-800 border border-white/20">
             <span id="promo-tag" class="bg-white/20 backdrop-blur-md text-xs md:text-sm font-bold px-4 py-1.5 rounded-full inline-block mb-3 shadow-inner">🔥 پیشنهاد ویژه</span>
@@ -51,6 +60,7 @@
         </div>
     </div>
 
+    <!-- دکمه‌های دانلود -->
     <div id="download" class="container mx-auto px-4 pb-16 text-center">
         <div class="flex flex-col sm:flex-row justify-center gap-4 max-w-xl mx-auto">
             <a href="https://github.com/aj3157247-bot/-Shahzada-Rates-/releases/download/v1.0.0/app-release.apk" class="bg-green-600 hover:bg-green-700 text-white font-bold px-8 py-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-lg transform hover:-translate-y-1">
@@ -62,6 +72,7 @@
         </div>
     </div>
 
+    <!-- بخش ویژگی‌ها -->
     <section class="bg-white py-16 border-t border-gray-200">
         <div class="container mx-auto px-4">
             <h3 class="text-2xl md:text-3xl font-bold text-center mb-12">چرا اپلیکیشن «افغان نرخ»؟</h3>
@@ -85,12 +96,14 @@
         </div>
     </section>
 
+    <!-- فوتر -->
     <footer class="bg-gray-800 text-white py-8">
         <div class="container mx-auto px-4 text-center">
             <p class="text-sm text-gray-400">© تمامی حقوق برای اپلیکیشن «افغان نرخ» محفوظ است.</p>
         </div>
     </footer>
 
+    <!-- اسکریپت تغییر خودکار متن و رنگ‌های جذاب بنر تبلیغاتی -->
     <script>
         const promos = [
             {
@@ -139,4 +152,13 @@
                 title.textContent = p.title;
                 desc.textContent = p.desc;
                 
-                banner.
+                banner.style.opacity = '1';
+                banner.style.transform = 'scale(1)';
+            }, 350);
+        }
+
+        setInterval(changePromo, 4000);
+    </script>
+
+</body>
+</html>
