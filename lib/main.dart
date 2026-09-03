@@ -12,7 +12,7 @@ import 'package:share_plus/share_plus.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    // await Firebase.initializeApp();
+    await Firebase.initializeApp(); // فعال‌سازی فایربیس برای آمارگیری تعداد کاربران
   } catch (e) {
     debugPrint('Firebase error: $e');
   }
@@ -21,6 +21,10 @@ void main() async {
 
 class AfghanExchangeApp extends StatelessWidget {
   const AfghanExchangeApp({super.key});
+
+  static FirebaseAnalytics analytics = FirebaseAnalytics.instance;
+  static FirebaseAnalyticsObserver observer =
+      FirebaseAnalyticsObserver(analytics: analytics);
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +35,7 @@ class AfghanExchangeApp extends StatelessWidget {
         primarySwatch: Colors.green,
         fontFamily: 'Roboto',
       ),
+      navigatorObservers: [observer],
       home: const HomeScreen(),
     );
   }
@@ -45,16 +50,25 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic> fullData = {};
-  bool isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    loadRatesSafely();
+    loadRates();
   }
 
-  Future<void> loadRatesSafely() async {
+  Future<void> loadRates() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      String? savedJson = prefs.getString('saved_rates_data');
+
+      if (savedJson != null && savedJson.isNotEmpty) {
+        setState(() {
+          fullData = json.decode(savedJson);
+        });
+        return;
+      }
+
       final String jsonString = await rootBundle.loadString('assets/rates.json');
       if (jsonString.isNotEmpty) {
         setState(() {
@@ -62,7 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Asset load error: $e');
+      debugPrint('Load rates error: $e');
     }
   }
 
@@ -96,18 +110,18 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.admin_panel_settings),
-            onPressed: () {
-              Navigator.push(
+            onPressed: () async {
+              await Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const AdminPage()),
               );
+              loadRates();
             },
           ),
         ],
       ),
       body: Column(
         children: [
-          // بخش نمایش تاریخ بروزرسانی
           Container(
             padding: const EdgeInsets.all(12),
             color: Colors.green[50],
@@ -157,6 +171,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                   ),
           ),
+          // بخش تبلیغات و راه‌های ارتباطی در پایین صفحه
           GestureDetector(
             onTap: () => _launchExternalUrl('https://t.me/your_channel'),
             child: Container(
@@ -182,22 +197,128 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class AdminPage extends StatelessWidget {
+class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
+
+  @override
+  State<AdminPage> createState() => _AdminPageState();
+}
+
+class _AdminPageState extends State<AdminPage> {
+  List ratesList = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    loadAdminData();
+  }
+
+  Future<void> loadAdminData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      String? savedJson = prefs.getString('saved_rates_data');
+
+      String jsonString;
+      if (savedJson != null && savedJson.isNotEmpty) {
+        jsonString = savedJson;
+      } else {
+        jsonString = await rootBundle.loadString('assets/rates.json');
+      }
+
+      var decoded = json.decode(jsonString);
+      setState(() {
+        ratesList = decoded['rates'] is List ? List.from(decoded['rates']) : [];
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> saveChanges() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      Map<String, dynamic> data = {
+        'last_updated': DateTime.now().toString().substring(0, 19),
+        'rates': ratesList,
+      };
+      await prefs.setString('saved_rates_data', json.encode(data));
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('نرخ‌ها با موفقیت ذخیره شدند')),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('خطا در ذخیره اطلاعات: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('تنظیمات ادمین'),
+        title: const Text('تنظیمات ادمین - مدیریت نرخ‌ها'),
         backgroundColor: Colors.green[800],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.save),
+            onPressed: saveChanges,
+            tooltip: 'ذخیره تغییرات',
+          ),
+        ],
       ),
-      body: const Center(
-        child: Text(
-          'بخش مدیریت نرخ‌ها',
-          style: TextStyle(fontSize: 18),
-        ),
-      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView.builder(
+              itemCount: ratesList.length,
+              itemBuilder: (context, index) {
+                var item = ratesList[index];
+                return Card(
+                  margin: const EdgeInsets.all(8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item['currency'] ?? '',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                decoration: const InputDecoration(labelText: 'نرخ خرید'),
+                                controller: TextEditingController(text: item['buy']?.toString() ?? ''),
+                                onChanged: (value) {
+                                  ratesList[index]['buy'] = value;
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: TextField(
+                                decoration: const InputDecoration(labelText: 'نرخ فروش'),
+                                controller: TextEditingController(text: item['sell']?.toString() ?? ''),
+                                onChanged: (value) {
+                                  ratesList[index]['sell'] = value;
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 }
