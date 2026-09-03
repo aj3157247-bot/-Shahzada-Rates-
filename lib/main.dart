@@ -220,7 +220,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _shareApp() {
     Share.share(
-      'برنامه حرفه‌ای «افغان نرخ» را نصب کنید و از دقیق‌ترین نرخ‌های لحظه‌ای اسعار، انواع طلا و نقره مطلع شوید!\n\nلینک دانلود برنامه:\nhttps://github.com/aj3157247-bot/-Shahzada-Rates-/releases/latest/download/app-release.apk'
+      'برنامه حرفه‌ای «افغان نرخ» را نصب کنید و از دقیق‌ترین نرخ‌های لحظه‌ای اسعار، انواع طلا و نقره مطلع شوید!\n\nلینک دانلود برنامه:\nhttps://github.com/aj3157247-bot/-Shahzada-Rates-/releases/download/v1.0.0/app-release.apk'
     );
   }
 
