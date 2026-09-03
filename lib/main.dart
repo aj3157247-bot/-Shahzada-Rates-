@@ -11,20 +11,20 @@ import 'package:share_plus/share_plus.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // موقتاً فایربیس را به صورت ایمن مدیریت می‌کنیم تا صفحه خاکستری نشود
   try {
-    // اگر فایل google-services.json مشکل داشته باشد، خطا گرفته می‌شود و برنامه متوقف نمی‌شود
-    // await Firebase.initializeApp();
+    await Firebase.initializeApp(); // فعال‌سازی فایربیس برای آمارگیری کاربران
   } catch (e) {
-    debugPrint('Firebase init error: $e');
+    debugPrint('Firebase error: $e');
   }
-  
   runApp(const AfghanExchangeApp());
 }
 
 class AfghanExchangeApp extends StatelessWidget {
   const AfghanExchangeApp({super.key});
+
+  static FirebaseAnalytics analytics = FirebaseAnalytics.instance;
+  static FirebaseAnalyticsObserver observer =
+      FirebaseAnalyticsObserver(analytics: analytics);
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +35,7 @@ class AfghanExchangeApp extends StatelessWidget {
         primarySwatch: Colors.green,
         fontFamily: 'Roboto',
       ),
+      navigatorObservers: [observer],
       home: const HomeScreen(),
     );
   }
@@ -49,33 +50,63 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic> fullData = {};
+  bool isLoading = true;
+  String adText = 'تبلیغات: برای ارتباط با ما کلیک کنید (تلگرام / واتساپ)';
+  String adLink = 'https://t.me/your_channel';
 
   @override
   void initState() {
     super.initState();
-    loadRates();
+    loadAppData();
   }
 
-  Future<void> loadRates() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      String? savedJson = prefs.getString('saved_rates_data');
+  Future<void> loadAppData() async {
+    setState(() => isLoading = true);
+    
+    // بارگذاری تنظیمات تبلیغات از حافظه محلی
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      adText = prefs.getString('ad_text') ?? 'تبلیغات: برای ارتباط با ما کلیک کنید (تلگرام / واتساپ)';
+      adLink = prefs.getString('ad_link') ?? 'https://t.me/your_channel';
+    });
 
-      if (savedJson != null && savedJson.isNotEmpty) {
+    // تلاش برای دریافت خودکار نرخ‌ها از اینترنت با فال‌بک به فایل محلی
+    try {
+      final response = await http
+          .get(Uri.parse('https://raw.githubusercontent.com/shahzada-rates/app/main/assets/rates.json'))
+          .timeout(const Duration(seconds: 6));
+      
+      if (response.statusCode == 200) {
+        final onlineData = json.decode(response.body);
         setState(() {
-          fullData = json.decode(savedJson);
+          fullData = onlineData;
+          isLoading = false;
+        });
+        // ذخیره نسخه آنلاین در حافظه برای دسترسی آفلاین بعدی
+        prefs.setString('cached_rates_json', response.body);
+        return;
+      }
+    } catch (_) {
+      // خطا در اتصال اینترنت، استفاده از کش یا فایل محلی
+    }
+
+    try {
+      String? cachedJson = prefs.getString('cached_rates_json');
+      if (cachedJson != null && cachedJson.isNotEmpty) {
+        setState(() {
+          fullData = json.decode(cachedJson);
+          isLoading = false;
         });
         return;
       }
 
       final String jsonString = await rootBundle.loadString('assets/rates.json');
-      if (jsonString.isNotEmpty) {
-        setState(() {
-          fullData = json.decode(jsonString);
-        });
-      }
+      setState(() {
+        fullData = json.decode(jsonString);
+        isLoading = false;
+      });
     } catch (e) {
-      debugPrint('Load rates error: $e');
+      setState(() => isLoading = false);
     }
   }
 
@@ -88,13 +119,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _shareApp() {
     Share.share(
-      'برنامه «افغان نرخ» را نصب کنید و از آخرین نرخ‌های لحظه‌ای ارز و طلا مطلع شوید!',
+      'برنامه «افغان نرخ» را نصب کنید و از آخرین نرخ‌های لحظه‌ای ارز، طلا و نقره مطلع شوید!\nلینک دانلود: https://github.com/shahzada-rates/app',
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    String lastUpdated = fullData['last_updated']?.toString() ?? 'نامشخص';
+    String lastUpdated = fullData['last_updated']?.toString() ?? 'بروز رسانی خودکار';
     List ratesList = fullData['rates'] is List ? fullData['rates'] : [];
 
     return Scaffold(
@@ -102,6 +133,11 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('افغان نرخ'),
         backgroundColor: Colors.green[700],
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: loadAppData,
+            tooltip: 'بروزرسانی نرخ‌ها',
+          ),
           IconButton(
             icon: const Icon(Icons.share),
             onPressed: _shareApp,
@@ -114,7 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 context,
                 MaterialPageRoute(builder: (context) => const AdminLoginPage()),
               );
-              loadRates();
+              loadAppData(); // بازخوانی تبلیغات پس از بازگشت از پنل ادمین
             },
           ),
         ],
@@ -130,60 +166,65 @@ class _HomeScreenState extends State<HomeScreen> {
                 const Icon(Icons.update, size: 18, color: Colors.green),
                 const SizedBox(width: 8),
                 Text(
-                  'آخرین بروزرسانی: $lastUpdated',
+                  'آخرین بروزرسانی اینترنتی: $lastUpdated',
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                 ),
               ],
             ),
           ),
           Expanded(
-            child: ratesList.isEmpty
-                ? const Center(child: Text('نرخی موجود نیست'))
-                : ListView.builder(
-                    itemCount: ratesList.length,
-                    itemBuilder: (context, index) {
-                      var item = ratesList[index];
-                      String currencyName = item['currency']?.toString() ?? '';
-                      String buyPrice = item['buy']?.toString() ?? '';
-                      String sellPrice = item['sell']?.toString() ?? '';
-                      String unit = item['unit']?.toString() ?? '';
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : ratesList.isEmpty
+                    ? const Center(child: Text('نرخی موجود نیست'))
+                    : ListView.builder(
+                        itemCount: ratesList.length,
+                        itemBuilder: (context, index) {
+                          var item = ratesList[index];
+                          String currencyName = item['currency']?.toString() ?? '';
+                          String buyPrice = item['buy']?.toString() ?? '';
+                          String sellPrice = item['sell']?.toString() ?? '';
+                          String unit = item['unit']?.toString() ?? '';
 
-                      return Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        child: ListTile(
-                          leading: const Icon(Icons.currency_exchange, color: Colors.green),
-                          title: Text(
-                            currencyName,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                          ),
-                          subtitle: Text('واحد: $unit'),
-                          trailing: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text('خرید: $buyPrice', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-                              Text('فروش: $sellPrice', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                          return Card(
+                            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            child: ListTile(
+                              leading: const Icon(Icons.currency_exchange, color: Colors.green),
+                              title: Text(
+                                currencyName,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                              subtitle: Text('واحد: $unit'),
+                              trailing: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text('خرید: $buyPrice', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                                  Text('فروش: $sellPrice', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
           ),
           GestureDetector(
-            onTap: () => _launchExternalUrl('https://t.me/your_channel'),
+            onTap: () => _launchExternalUrl(adLink),
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               color: Colors.green[100],
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.campaign, color: Colors.green),
-                  SizedBox(width: 8),
-                  Text(
-                    'تبلیغات: برای ارتباط با ما کلیک کنید (تلگرام / واتساپ)',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                  const Icon(Icons.campaign, color: Colors.green),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      adText,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
@@ -215,7 +256,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
         _passwordController.text.trim() == adminPass) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const AdminPage()),
+        MaterialPageRoute(builder: (context) => const AdminDashboardPage()),
       );
     } else {
       setState(() {
@@ -278,127 +319,144 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
   }
 }
 
-class AdminPage extends StatefulWidget {
-  const AdminPage({super.key});
+// داشبورد حرفه‌ای ادمین: مدیریت تبلیغات و آمار کاربران
+class AdminDashboardPage extends StatefulWidget {
+  const AdminDashboardPage({super.key});
 
   @override
-  State<AdminPage> createState() => _AdminPageState();
+  State<AdminDashboardPage> createState() => _AdminDashboardPageState();
 }
 
-class _AdminPageState extends State<AdminPage> {
-  List ratesList = [];
+class _AdminDashboardPageState extends State<AdminDashboardPage> {
+  final TextEditingController _adTextController = TextEditingController();
+  final TextEditingController _adLinkController = TextEditingController();
   bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    loadAdminData();
+    loadAdminSettings();
   }
 
-  Future<void> loadAdminData() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      String? savedJson = prefs.getString('saved_rates_data');
-
-      String jsonString;
-      if (savedJson != null && savedJson.isNotEmpty) {
-        jsonString = savedJson;
-      } else {
-        jsonString = await rootBundle.loadString('assets/rates.json');
-      }
-
-      var decoded = json.decode(jsonString);
-      setState(() {
-        ratesList = decoded['rates'] is List ? List.from(decoded['rates']) : [];
-        isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        isLoading = false;
-      });
-    }
+  Future<void> loadAdminSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _adTextController.text = prefs.getString('ad_text') ?? 'تبلیغات: برای ارتباط با ما کلیک کنید (تلگرام / واتساپ)';
+      _adLinkController.text = prefs.getString('ad_link') ?? 'https://t.me/your_channel';
+      isLoading = false;
+    });
   }
 
-  Future<void> saveChanges() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      Map<String, dynamic> data = {
-        'last_updated': DateTime.now().toString().substring(0, 19),
-        'rates': ratesList,
-      };
-      await prefs.setString('saved_rates_data', json.encode(data));
+  Future<void> saveAdSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('ad_text', _adTextController.text.trim());
+    await prefs.setString('ad_link', _adLinkController.text.trim());
 
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('نرخ‌ها با موفقیت ذخیره شدند')),
-      );
-      Navigator.pop(context);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('خطا در ذخیره اطلاعات: $e')),
-      );
-    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('تنظیمات تبلیغات با موفقیت ذخیره شد')),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('مدیریت نرخ‌ها'),
+        title: const Text('پنل مدیریت حرفه‌ای'),
         backgroundColor: Colors.green[800],
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.save),
-            onPressed: saveChanges,
-            tooltip: 'ذخیره تغییرات',
-          ),
-        ],
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              itemCount: ratesList.length,
-              itemBuilder: (context, index) {
-                var item = ratesList[index];
-                return Card(
-                  margin: const EdgeInsets.all(8),
+          : ListView(
+              padding: const EdgeInsets.all(16.0),
+              children: [
+                // بخش آمار کاربران و بازدید اپلیکیشن
+                Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Padding(
-                    padding: const EdgeInsets.all(8.0),
+                    padding: const EdgeInsets.all(16.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item['currency'] ?? '',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
+                      children: const [
                         Row(
                           children: [
-                            Expanded(
-                              child: TextField(
-                                decoration: const InputDecoration(labelText: 'نرخ خرید'),
-                                controller: TextEditingController(text: item['buy']?.toString() ?? ''),
-                                onChanged: (value) {
-                                  ratesList[index]['buy'] = value;
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: TextField(
-                                decoration: const InputDecoration(labelText: 'نرخ فروش'),
-                                controller: TextEditingController(text: item['sell']?.toString() ?? ''),
-                                onChanged: (value) {
-                                  ratesList[index]['sell'] = value;
-                                },
-                              ),
+                            Icon(Icons.analytics, color: Colors.green, size: 28),
+                            SizedBox(width: 8),
+                            Text(
+                              'آمار و تحلیل کاربران (Firebase Analytics)',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                             ),
                           ],
+                        ),
+                        Divider(height: 20),
+                        Text(
+                          'وضعیت رصد کاربران: فعال و آنلاین',
+                          style: TextStyle(fontSize: 14, color: Colors.black87),
+                        ),
+                        SizedBox(height: 6),
+                        Text(
+                          'برای مشاهده دقیق تعداد کاربران فعال لحظه‌ای، میزان نصب و آمار جغرافیایی، لطفاً به کنسول رسمی فایربیس (Firebase Console) مراجعه کنید.',
+                          style: TextStyle(fontSize: 13, color: Colors.grey),
                         ),
                       ],
                     ),
                   ),
-                );
-              },
+                ),
+                const SizedBox(height: 20),
+                // بخش مدیریت حرفه‌ای تبلیغات
+                Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.campaign, color: Colors.green, size: 28),
+                            SizedBox(width: 8),
+                            Text(
+                              'مدیریت حرفه‌ای بنر تبلیغاتی',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        const Divider(height: 20),
+                        TextField(
+                          controller: _adTextController,
+                          maxLines: 2,
+                          decoration: const InputDecoration(
+                            labelText: 'متن تبلیغاتی بنر پایین صفحه',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _adLinkController,
+                          decoration: const InputDecoration(
+                            labelText: 'لینک مقصد (تلگرام، واتساپ یا وب‌سایت)',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.link),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.styleFrom != null
+                            ? ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green[700],
+                                  minimumSize: const Size.fromHeight(48),
+                                ),
+                                onPressed: saveAdSettings,
+                                child: const Text('ذخیره و اعمال آنی تبلیغ', style: TextStyle(fontSize: 16, color: Colors.white)),
+                              )
+                            : Container(),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
     );
   }
