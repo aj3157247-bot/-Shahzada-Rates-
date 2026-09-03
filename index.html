@@ -53,12 +53,53 @@
 
     <!-- 🌟 بخش تبلیغات و بنر پویا با تغییر رنگ جذاب و خودکار -->
     <div class="max-w-3xl mx-auto px-4 mb-12">
-        <div id="promo-banner" class="transition-all duration-700 ease-in-out p-6 md:p-8 rounded-3xl shadow-2xl text-white text-center transform hover:scale-[1.02] cursor-pointer bg-gradient-to-r from-emerald-600 via-teal-700 to-green-800 border border-white/20">
-            <span id="promo-tag" class="bg-white/20 backdrop-blur-md text-xs md:text-sm font-bold px-4 py-1.5 rounded-full inline-block mb-3 shadow-inner">🔥 پیشنهاد ویژه</span>
-            <h3 id="promo-title" class="text-xl md:text-2xl font-black mb-2 tracking-wide">بالاترین و دقیق‌ترین نرخ‌ اسعار در بازار صرافان کابل</h3>
-            <p id="promo-desc" class="text-sm md:text-base opacity-95 font-medium">همین حالا اپلیکیشن را دانلود کنید و از تغییرات لحظه‌ای دلار و طلا مطلع شوید.</p>
+    <div class="w-full max-w-md mx-auto px-3 py-2">
+    <div id="app-ad-banner" class="relative overflow-hidden rounded-2xl p-4 shadow-2xl transition-all duration-700 ease-in-out transform hover:scale-[1.02] cursor-pointer bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 border-2 border-white/30">
+        <!-- لایه براق و شیشه‌ای برای خوانایی فوق‌العاده متن -->
+        <div class="absolute inset-0 bg-black/10 backdrop-blur-[2px] pointer-events-none"></div>
+        
+        <div class="relative z-10 flex items-center justify-between text-white">
+            <div class="flex items-center gap-3">
+                <span class="text-2xl animate-pulse">📢</span>
+                <div>
+                    <span id="ad-tag" class="text-xs font-black bg-white/25 px-2.5 py-0.5 rounded-full inline-block mb-1 shadow-inner">🔥 جایگاه تبلیغات</span>
+                    <p id="ad-text" class="text-sm md:text-base font-extrabold tracking-wide drop-shadow-md">برای نشر تبلیغات خود در اپلیکیشن به ما پیام دهید!</p>
+                </div>
+            </div>
         </div>
     </div>
+</div>
+
+<script>
+    const ads = [
+        { tag: "🔥 جایگاه تبلیغات", text: "برای نشر تبلیغات خود در اپلیکیشن به ما پیام دهید!", gradient: "bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600" },
+        { tag: "💎 معرفی کسب‌وکار", text: "صرافی و تجارت خود را به هزاران کاربر معرفی کنید!", gradient: "bg-gradient-to-r from-amber-500 via-orange-600 to-yellow-500" },
+        { tag: "⚡ بازدهی فوق‌العاده", text: "جهت ثبت سفارش تبلیغات لحظه‌ای با ما در ارتباط باشید.", gradient: "bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600" },
+        { tag: "📢 پلتفرم تخصصی اسعار", text: "بزرگترین مرجع بررسی نرخ ارز و طلا در افغانستان", gradient: "bg-gradient-to-r from-rose-600 via-pink-600 to-red-600" }
+    ];
+
+    let adIndex = 0;
+    const bannerEl = document.getElementById('app-ad-banner');
+    const tagEl = document.getElementById('ad-tag');
+    const textEl = document.getElementById('ad-text');
+
+    function rotateAds() {
+        bannerEl.style.opacity = '0';
+        bannerEl.style.transform = 'translateY(8px)';
+        setTimeout(() => {
+            adIndex = (adIndex + 1) % ads.length;
+            const ad = ads[adIndex];
+            bannerEl.className = `relative overflow-hidden rounded-2xl p-4 shadow-2xl transition-all duration-700 ease-in-out transform hover:scale-[1.02] cursor-pointer border-2 border-white/30 ${ad.gradient}`;
+            tagEl.textContent = ad.tag;
+            textEl.textContent = ad.text;
+            bannerEl.style.opacity = '1';
+            bannerEl.style.transform = 'translateY(0)';
+        }, 350);
+    }
+
+    setInterval(rotateAds, 4000);
+</script>
+
 
     <!-- دکمه‌های دانلود -->
     <div id="download" class="container mx-auto px-4 pb-16 text-center">
