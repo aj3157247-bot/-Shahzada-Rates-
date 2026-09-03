@@ -11,11 +11,8 @@ import 'package:share_plus/share_plus.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await Firebase.initializeApp();
-  } catch (e) {
-    debugPrint('Firebase initialization error: $e');
-  }
+  // موقتاً برای تست صفحه سفید، فایربیس کامنت شده است
+  // await Firebase.initializeApp();
   runApp(const AfghanExchangeApp());
 }
 
@@ -102,7 +99,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // متد اشتراک‌گذاری برنامه
   void _shareApp() {
     Share.share(
       'برنامه «افغان نرخ» را نصب کنید و از آخرین نرخ‌های لحظه‌ای ارز و طلا مطلع شوید!\nلينک دانلود: https://github.com/shahzada-rates/app',
@@ -116,13 +112,11 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('افغان نرخ'),
         backgroundColor: Colors.green[700],
         actions: [
-          // دکمه اشتراک گذاری
           IconButton(
             icon: const Icon(Icons.share),
             onPressed: _shareApp,
             tooltip: 'اشتراک‌گذاری برنامه',
           ),
-          // دکمه ادمین
           IconButton(
             icon: const Icon(Icons.admin_panel_settings),
             onPressed: () {
