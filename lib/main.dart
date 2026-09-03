@@ -68,12 +68,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  // راه‌اندازی تایمر هوشمند با قابلیت تنظیم زمان اختصاصی برای هر تبلیغ
   void _startAdTimer() {
     _adTimer?.cancel();
     if (activeAds.isEmpty) return;
 
-    // خواندن مدت زمان اختصاصی این تبلیغ (پیش‌فرض ۵ ثانیه اگر تعیین نشده باشد)
     var currentAd = activeAds[_currentAdIndex % activeAds.length];
     int durationSec = int.tryParse(currentAd['duration']?.toString() ?? '5') ?? 5;
     if (durationSec < 1) durationSec = 5;
@@ -92,7 +90,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           curve: Curves.easeInOut,
         );
       }
-      _startAdTimer(); // چرخه برای تبلیغ بعدی با زمان خودش
+      _startAdTimer();
     });
   }
 
@@ -100,7 +98,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     setState(() => isLoading = true);
     final prefs = await SharedPreferences.getInstance();
     
-    // ۱. بارگذاری تبلیغات فعال از پنل ادمین همراه با زمان اختصاصی
+    // ۱. بارگذاری و مرتب‌سازی تبلیغات فعال بر اساس رنک (Rank)
     String? adsJson = prefs.getString('ads_list_json');
     List<Map<String, dynamic>> loadedAds = [];
     if (adsJson != null && adsJson.isNotEmpty) {
@@ -111,6 +109,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             'text': ad['text'] ?? '',
             'link': ad['link'] ?? '',
             'duration': ad['duration'] ?? '5',
+            'rank': ad['rank'] ?? '1',
           });
         }
       }
@@ -118,14 +117,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       loadedAds.add({
         'text': '📢 تبلیغات هزینه نیست، سرمایه است! برای نشر خدمات و صرافی خود با ما در تماس باشید.',
         'link': 'https://t.me/your_channel',
-        'duration': '6'
+        'duration': '6',
+        'rank': '1'
       });
       loadedAds.add({
         'text': '🌟 صرافی معتبر شما؛ انجام حوالجات بین‌المللی با بهترین نرخ و امنیت کامل.',
         'link': 'https://t.me/your_channel',
-        'duration': '4'
+        'duration': '4',
+        'rank': '2'
       });
     }
+
+    // مرتب‌سازی بر اساس رنک عددی (از کوچک به بزرگ: ۱، ۲، ۳...)
+    loadedAds.sort((a, b) {
+      int rankA = int.tryParse(a['rank']?.toString() ?? '1') ?? 1;
+      int rankB = int.tryParse(b['rank']?.toString() ?? '1') ?? 1;
+      return rankA.compareTo(rankB);
+    });
 
     setState(() {
       activeAds = loadedAds;
@@ -214,7 +222,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _shareApp() {
     Share.share(
-      'برنامه حرفه‌ای «افغان نرخ» را نصب کنید و از دقیق‌ترین نرخ‌های لحظه‌ای اسعار، انواع طلا و نقره مطلع شوید!\n\nلینک دانلود برنامه:\nhttps://github.com/shahzada-rates/app'
+      'برنامه حرفه‌ای «افغان نرخ» را نصب کنید و از دقیق‌ترین نرخ‌های لحظه‌ای اسعار، انواع طلا و نقره مطلع شوید!\n\nلینک دانلود برنامه:\nhttps://github.com/shahzada-rates/app/releases/latest/download/app-release.apk'
     );
   }
 
@@ -295,7 +303,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ],
                   ),
           ),
-          // بخش تبلیغات با چرخش خودکار و زمان اختصاصی برای هر بنر
           if (activeAds.isNotEmpty)
             Container(
               height: 65,
@@ -309,7 +316,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   setState(() {
                     _currentAdIndex = index;
                   });
-                  _startAdTimer(); // تنظیم مجدد تایمر بر اساس زمان این بنر جدید
+                  _startAdTimer();
                 },
                 itemBuilder: (context, index) {
                   var ad = activeAds[index];
@@ -530,7 +537,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           'text': '📢 تبلیغات هزینه نیست، سرمایه است! برای نشر خدمات و صرافی خود با ما در تماس باشید.',
           'link': 'https://t.me/your_channel',
           'active': true,
-          'duration': '5'
+          'duration': '5',
+          'rank': '1'
         }
       ];
     }
@@ -546,7 +554,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تنظیمات تبلیغات و زمان‌بندی با موفقیت ذخیره شد')),
+      const SnackBar(content: Text('تنظیمات تبلیغات، رنک و زمان‌بندی با موفقیت ذخیره شد')),
     );
     Navigator.pop(context);
   }
@@ -557,7 +565,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         'text': 'متن تبلیغ جدید...',
         'link': 'https://t.me/your_channel',
         'active': true,
-        'duration': '5'
+        'duration': '5',
+        'rank': (adsList.length + 1).toString()
       });
     });
   }
@@ -612,7 +621,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('سیستم تبلیغات و زمان‌بندی', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green)),
+                            const Text('سیستم تبلیغات، رنک و زمان‌بندی', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green)),
                             ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(backgroundColor: Colors.green[700]),
                               onPressed: _addNewAd,
@@ -669,7 +678,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                 Row(
                                   children: [
                                     Expanded(
-                                      flex: 2,
+                                      flex: 3,
                                       child: TextField(
                                         controller: TextEditingController(text: ad['link']),
                                         onChanged: (val) => ad['link'] = val,
@@ -678,12 +687,22 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                     ),
                                     const SizedBox(width: 8),
                                     Expanded(
-                                      flex: 1,
+                                      flex: 2,
                                       child: TextField(
                                         controller: TextEditingController(text: ad['duration']?.toString() ?? '5'),
                                         keyboardType: TextInputType.number,
                                         onChanged: (val) => ad['duration'] = val,
                                         decoration: const InputDecoration(labelText: 'مدت (ثانیه)', border: OutlineInputBorder(), isDense: true),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      flex: 2,
+                                      child: TextField(
+                                        controller: TextEditingController(text: ad['rank']?.toString() ?? '1'),
+                                        keyboardType: TextInputType.number,
+                                        onChanged: (val) => ad['rank'] = val,
+                                        decoration: const InputDecoration(labelText: 'رنک (ترتیب)', border: OutlineInputBorder(), isDense: true),
                                       ),
                                     ),
                                   ],
