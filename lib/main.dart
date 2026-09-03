@@ -12,7 +12,7 @@ import 'package:share_plus/share_plus.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    await Firebase.initializeApp(); // فعال‌سازی فایربیس برای آمارگیری تعداد کاربران
+    await Firebase.initializeApp(); // فعال‌سازی آمارگیری تعداد کاربران
   } catch (e) {
     debugPrint('Firebase error: $e');
   }
@@ -113,7 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () async {
               await Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const AdminPage()),
+                MaterialPageRoute(builder: (context) => const AdminLoginPage()),
               );
               loadRates();
             },
@@ -197,6 +197,91 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
+// صفحه ورود ادمین با ایمیل و رمز عبور اختصاصی شما
+class AdminLoginPage extends StatefulWidget {
+  const AdminLoginPage({super.key});
+
+  @override
+  State<AdminLoginPage> createState() => _AdminLoginPageState();
+}
+
+class _AdminLoginPageState extends State<AdminLoginPage> {
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  String errorMessage = '';
+
+  void _login() {
+    String adminEmail = 'abdullahjafari712@gmail.com';
+    String adminPass = '05050505';
+
+    if (_emailController.text.trim() == adminEmail &&
+        _passwordController.text.trim() == adminPass) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const AdminPage()),
+      );
+    } else {
+      setState(() {
+        errorMessage = 'ایمیل یا رمز عبور اشتباه است';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('ورود به پنل مدیریت'),
+        backgroundColor: Colors.green[800],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.lock_person, size: 80, color: Colors.green),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _emailController,
+              decoration: const InputDecoration(
+                labelText: 'ایمیل ادمین',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.email),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'رمز عبور',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.lock),
+              ),
+            ),
+            const SizedBox(height: 20),
+            if (errorMessage.isNotEmpty)
+              Text(
+                errorMessage,
+                style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+              ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green[700],
+                minimumSize: const Size.fromHeight(50),
+              ),
+              onPressed: _login,
+              child: const Text('ورود', style: TextStyle(fontSize: 18, color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// صفحه اصلی مدیریت نرخ‌ها
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
 
@@ -263,7 +348,7 @@ class _AdminPageState extends State<AdminPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('تنظیمات ادمین - مدیریت نرخ‌ها'),
+        title: const Text('مدیریت نرخ‌ها'),
         backgroundColor: Colors.green[800],
         actions: [
           IconButton(
