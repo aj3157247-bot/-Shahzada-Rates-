@@ -50,6 +50,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late TabController _tabController;
   late PageController _adPageController;
   Timer? _adTimer;
+  int _currentAdIndex = 0;
 
   @override
   void initState() {
@@ -67,21 +68,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  // راه‌اندازی تایمر تغییر خودکار تبلیغات
+  // راه‌اندازی تایمر هوشمند با قابلیت تنظیم زمان اختصاصی برای هر تبلیغ
   void _startAdTimer() {
     _adTimer?.cancel();
-    _adTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+    if (activeAds.isEmpty) return;
+
+    // خواندن مدت زمان اختصاصی این تبلیغ (پیش‌فرض ۵ ثانیه اگر تعیین نشده باشد)
+    var currentAd = activeAds[_currentAdIndex % activeAds.length];
+    int durationSec = int.tryParse(currentAd['duration']?.toString() ?? '5') ?? 5;
+    if (durationSec < 1) durationSec = 5;
+
+    _adTimer = Timer(Duration(seconds: durationSec), () {
+      if (!mounted) return;
       if (activeAds.length > 1 && _adPageController.hasClients) {
-        int nextPage = (_adPageController.page?.round() ?? 0) + 1;
+        int nextPage = _currentAdIndex + 1;
         if (nextPage >= activeAds.length) {
           nextPage = 0;
         }
+        _currentAdIndex = nextPage;
         _adPageController.animateToPage(
           nextPage,
           duration: const Duration(milliseconds: 500),
           curve: Curves.easeInOut,
         );
       }
+      _startAdTimer(); // چرخه برای تبلیغ بعدی با زمان خودش
     });
   }
 
@@ -89,37 +100,42 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     setState(() => isLoading = true);
     final prefs = await SharedPreferences.getInstance();
     
-    // ۱. بارگذاری تبلیغات فعال از پنل ادمین
+    // ۱. بارگذاری تبلیغات فعال از پنل ادمین همراه با زمان اختصاصی
     String? adsJson = prefs.getString('ads_list_json');
     List<Map<String, dynamic>> loadedAds = [];
     if (adsJson != null && adsJson.isNotEmpty) {
       List decodedAds = json.decode(adsJson);
       for (var ad in decodedAds) {
         if (ad['active'] == true) {
-          loadedAds.add({'text': ad['text'] ?? '', 'link': ad['link'] ?? ''});
+          loadedAds.add({
+            'text': ad['text'] ?? '',
+            'link': ad['link'] ?? '',
+            'duration': ad['duration'] ?? '5',
+          });
         }
       }
     } else {
       loadedAds.add({
         'text': '📢 تبلیغات هزینه نیست، سرمایه است! برای نشر خدمات و صرافی خود با ما در تماس باشید.',
-        'link': 'https://t.me/your_channel'
+        'link': 'https://t.me/your_channel',
+        'duration': '6'
       });
       loadedAds.add({
         'text': '🌟 صرافی معتبر شما؛ انجام حوالجات بین‌المللی با بهترین نرخ و امنیت کامل.',
-        'link': 'https://t.me/your_channel'
+        'link': 'https://t.me/your_channel',
+        'duration': '4'
       });
     }
 
     setState(() {
       activeAds = loadedAds;
+      _currentAdIndex = 0;
     });
 
-    // شروع چرخش خودکار تبلیغات
     _startAdTimer();
 
     String currentFormattedTime = "${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')} ${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}:${DateTime.now().second.toString().padLeft(2, '0')}";
 
-    // ساختار کاملاً تفکیک‌شده برای اسعار، انواع طلا و نقره جهانی/بازار
     final Map<String, dynamic> defaultStructuredData = {
       "last_updated": currentFormattedTime,
       "currencies": [
@@ -146,7 +162,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ]
     };
 
-    // ۲. دریافت آنلاین از گیت‌هاب
     try {
       final response = await http
           .get(Uri.parse('https://raw.githubusercontent.com/shahzada-rates/app/main/assets/rates.json'))
@@ -280,7 +295,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ],
                   ),
           ),
-          // بخش تبلیغات با چرخش خودکار (Auto-play PageView) و متن متحرک
+          // بخش تبلیغات با چرخش خودکار و زمان اختصاصی برای هر بنر
           if (activeAds.isNotEmpty)
             Container(
               height: 65,
@@ -290,6 +305,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               child: PageView.builder(
                 controller: _adPageController,
                 itemCount: activeAds.length,
+                onPageChanged: (index) {
+                  setState(() {
+                    _currentAdIndex = index;
+                  });
+                  _startAdTimer(); // تنظیم مجدد تایمر بر اساس زمان این بنر جدید
+                },
                 itemBuilder: (context, index) {
                   var ad = activeAds[index];
                   return GestureDetector(
@@ -505,7 +526,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       adsList = decoded.map((e) => Map<String, dynamic>.from(e)).toList();
     } else {
       adsList = [
-        {'text': '📢 تبلیغات هزینه نیست، سرمایه است! برای نشر خدمات و صرافی خود با ما در تماس باشید.', 'link': 'https://t.me/your_channel', 'active': true}
+        {
+          'text': '📢 تبلیغات هزینه نیست، سرمایه است! برای نشر خدمات و صرافی خود با ما در تماس باشید.',
+          'link': 'https://t.me/your_channel',
+          'active': true,
+          'duration': '5'
+        }
       ];
     }
 
@@ -520,14 +546,19 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تنظیمات تبلیغات با موفقیت ذخیره شد')),
+      const SnackBar(content: Text('تنظیمات تبلیغات و زمان‌بندی با موفقیت ذخیره شد')),
     );
     Navigator.pop(context);
   }
 
   void _addNewAd() {
     setState(() {
-      adsList.add({'text': 'متن تبلیغ جدید...', 'link': 'https://t.me/your_channel', 'active': true});
+      adsList.add({
+        'text': 'متن تبلیغ جدید...',
+        'link': 'https://t.me/your_channel',
+        'active': true,
+        'duration': '5'
+      });
     });
   }
 
@@ -581,7 +612,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('سیستم تبلیغات', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green)),
+                            const Text('سیستم تبلیغات و زمان‌بندی', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green)),
                             ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(backgroundColor: Colors.green[700]),
                               onPressed: _addNewAd,
@@ -635,10 +666,27 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                   decoration: const InputDecoration(labelText: 'متن تبلیغ', border: OutlineInputBorder(), isDense: true),
                                 ),
                                 const SizedBox(height: 8),
-                                TextField(
-                                  controller: TextEditingController(text: ad['link']),
-                                  onChanged: (val) => ad['link'] = val,
-                                  decoration: const InputDecoration(labelText: 'لینک مقصد (تلگرام/واتساپ)', border: OutlineInputBorder(), isDense: true),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 2,
+                                      child: TextField(
+                                        controller: TextEditingController(text: ad['link']),
+                                        onChanged: (val) => ad['link'] = val,
+                                        decoration: const InputDecoration(labelText: 'لینک مقصد (تلگرام/واتساپ)', border: OutlineInputBorder(), isDense: true),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      flex: 1,
+                                      child: TextField(
+                                        controller: TextEditingController(text: ad['duration']?.toString() ?? '5'),
+                                        keyboardType: TextInputType.number,
+                                        onChanged: (val) => ad['duration'] = val,
+                                        decoration: const InputDecoration(labelText: 'مدت (ثانیه)', border: OutlineInputBorder(), isDense: true),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
