@@ -5,16 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>دانلود اپلیکیشن افغان نرخ | نرخ لحظه‌ای دلار، یورو، تومان و اسعار در افغانستان</title>
     
-    <!-- متاتگ تایید گوگل سرچ کنسول -->
-    <meta name="google-site-verification" content="welLW9hTpZ8qAfjerwb6pyq_b8MmNqRIq5tvHujzTwE" />
-    
-    <!-- سئو و توضیحات موتورهای جستجو -->
     <meta name="description" content="اپلیکیشن حرفه‌ای افغان نرخ؛ مرجع دقیق و لحظه‌ای نرخ دلار، اسعار، طلا و نقره، تومان ایران و کلدار پاکستان در بازار افغانستان. دانلود رایگان برنامه اندروید.">
     <meta name="keywords" content="نرخ اسعار, نرخ دلار, نرخ دلار در کابل, قیمت تومان ایران, نرخ ارز افغانستان, افغان نرخ, صرافی های افغانستان, دانلود افغان نرخ">
     
-    <!-- لینک به فریم‌ورک استایل‌دهی Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- فونت وزیرمتن برای زیبایی متن‌های فارسی -->
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
     
     <style>
@@ -25,7 +19,6 @@
 </head>
 <body class="bg-gray-50 text-gray-800">
 
-    <!-- هدر سایت -->
     <header class="bg-green-700 text-white shadow-md">
         <div class="container mx-auto px-4 py-6 flex justify-between items-center">
             <div class="flex items-center space-x-3 space-x-reverse">
@@ -38,7 +31,6 @@
         </div>
     </header>
 
-    <!-- بخش اصلی (Hero Section) -->
     <section class="container mx-auto px-4 pt-12 pb-8 text-center">
         <div class="max-w-3xl mx-auto">
             <span class="bg-green-100 text-green-800 text-sm font-semibold px-3 py-1 rounded-full inline-block mb-4">دقیق‌ترین مرجع اسعار و طلا در افغانستان 🇦🇫</span>
@@ -51,57 +43,14 @@
         </div>
     </section>
 
-    <!-- 🌟 بخش تبلیغات و بنر پویا با تغییر رنگ جذاب و خودکار -->
     <div class="max-w-3xl mx-auto px-4 mb-12">
-    <div class="w-full max-w-md mx-auto px-3 py-2">
-    <div id="app-ad-banner" class="relative overflow-hidden rounded-2xl p-4 shadow-2xl transition-all duration-700 ease-in-out transform hover:scale-[1.02] cursor-pointer bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 border-2 border-white/30">
-        <!-- لایه براق و شیشه‌ای برای خوانایی فوق‌العاده متن -->
-        <div class="absolute inset-0 bg-black/10 backdrop-blur-[2px] pointer-events-none"></div>
-        
-        <div class="relative z-10 flex items-center justify-between text-white">
-            <div class="flex items-center gap-3">
-                <span class="text-2xl animate-pulse">📢</span>
-                <div>
-                    <span id="ad-tag" class="text-xs font-black bg-white/25 px-2.5 py-0.5 rounded-full inline-block mb-1 shadow-inner">🔥 جایگاه تبلیغات</span>
-                    <p id="ad-text" class="text-sm md:text-base font-extrabold tracking-wide drop-shadow-md">برای نشر تبلیغات خود در اپلیکیشن به ما پیام دهید!</p>
-                </div>
-            </div>
+        <div id="promo-banner" class="transition-all duration-700 ease-in-out p-6 md:p-8 rounded-3xl text-white text-center transform hover:scale-[1.03] hover:-translate-y-1.5 cursor-pointer relative overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.3)] border-2 border-white/30 bg-gradient-to-r from-emerald-600 via-teal-700 to-green-800">
+            <span id="promo-tag" class="bg-white/25 backdrop-blur-md text-xs md:text-sm font-extrabold px-4 py-1.5 rounded-full inline-block mb-3 shadow-[0_4px_10px_rgba(0,0,0,0.15)] border border-white/30">🔥 پیشنهاد ویژه</span>
+            <h3 id="promo-title" class="text-xl md:text-2xl font-black mb-2 tracking-wide drop-shadow-md">بالاترین و دقیق‌ترین نرخ‌ اسعار در بازار صرافان کابل</h3>
+            <p id="promo-desc" class="text-sm md:text-base opacity-95 font-medium drop-shadow">همین حالا اپلیکیشن را دانلود کنید و از تغییرات لحظه‌ای دلار و طلا مطلع شوید.</p>
         </div>
     </div>
-</div>
 
-<script>
-    const ads = [
-        { tag: "🔥 جایگاه تبلیغات", text: "برای نشر تبلیغات خود در اپلیکیشن به ما پیام دهید!", gradient: "bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600" },
-        { tag: "💎 معرفی کسب‌وکار", text: "صرافی و تجارت خود را به هزاران کاربر معرفی کنید!", gradient: "bg-gradient-to-r from-amber-500 via-orange-600 to-yellow-500" },
-        { tag: "⚡ بازدهی فوق‌العاده", text: "جهت ثبت سفارش تبلیغات لحظه‌ای با ما در ارتباط باشید.", gradient: "bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600" },
-        { tag: "📢 پلتفرم تخصصی اسعار", text: "بزرگترین مرجع بررسی نرخ ارز و طلا در افغانستان", gradient: "bg-gradient-to-r from-rose-600 via-pink-600 to-red-600" }
-    ];
-
-    let adIndex = 0;
-    const bannerEl = document.getElementById('app-ad-banner');
-    const tagEl = document.getElementById('ad-tag');
-    const textEl = document.getElementById('ad-text');
-
-    function rotateAds() {
-        bannerEl.style.opacity = '0';
-        bannerEl.style.transform = 'translateY(8px)';
-        setTimeout(() => {
-            adIndex = (adIndex + 1) % ads.length;
-            const ad = ads[adIndex];
-            bannerEl.className = `relative overflow-hidden rounded-2xl p-4 shadow-2xl transition-all duration-700 ease-in-out transform hover:scale-[1.02] cursor-pointer border-2 border-white/30 ${ad.gradient}`;
-            tagEl.textContent = ad.tag;
-            textEl.textContent = ad.text;
-            bannerEl.style.opacity = '1';
-            bannerEl.style.transform = 'translateY(0)';
-        }, 350);
-    }
-
-    setInterval(rotateAds, 4000);
-</script>
-
-
-    <!-- دکمه‌های دانلود -->
     <div id="download" class="container mx-auto px-4 pb-16 text-center">
         <div class="flex flex-col sm:flex-row justify-center gap-4 max-w-xl mx-auto">
             <a href="https://github.com/aj3157247-bot/-Shahzada-Rates-/releases/download/v1.0.0/app-release.apk" class="bg-green-600 hover:bg-green-700 text-white font-bold px-8 py-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-lg transform hover:-translate-y-1">
@@ -113,7 +62,6 @@
         </div>
     </div>
 
-    <!-- بخش ویژگی‌ها -->
     <section class="bg-white py-16 border-t border-gray-200">
         <div class="container mx-auto px-4">
             <h3 class="text-2xl md:text-3xl font-bold text-center mb-12">چرا اپلیکیشن «افغان نرخ»؟</h3>
@@ -137,14 +85,12 @@
         </div>
     </section>
 
-    <!-- فوتر -->
     <footer class="bg-gray-800 text-white py-8">
         <div class="container mx-auto px-4 text-center">
             <p class="text-sm text-gray-400">© تمامی حقوق برای اپلیکیشن «افغان نرخ» محفوظ است.</p>
         </div>
     </footer>
 
-    <!-- اسکریپت تغییر خودکار متن و رنگ‌های جذاب بنر تبلیغاتی -->
     <script>
         const promos = [
             {
@@ -181,20 +127,20 @@
 
         function changePromo() {
             banner.style.opacity = '0';
-            banner.style.transform = 'scale(0.96)';
+            banner.style.transform = 'scale(0.96) translateY(5px)';
             
             setTimeout(() => {
                 currentIndex = (currentIndex + 1) % promos.length;
                 const p = promos[currentIndex];
                 
-                banner.className = `transition-all duration-700 ease-in-out p-6 md:p-8 rounded-3xl shadow-2xl text-white text-center transform hover:scale-[1.02] cursor-pointer border border-white/20 ${p.gradient}`;
+                banner.className = `transition-all duration-700 ease-in-out p-6 md:p-8 rounded-3xl text-white text-center transform hover:scale-[1.03] hover:-translate-y-1.5 cursor-pointer relative overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.3)] border-2 border-white/30 ${p.gradient}`;
                 
                 tag.textContent = p.tag;
                 title.textContent = p.title;
                 desc.textContent = p.desc;
                 
                 banner.style.opacity = '1';
-                banner.style.transform = 'scale(1)';
+                banner.style.transform = 'scale(1) translateY(0)';
             }, 350);
         }
 
