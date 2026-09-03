@@ -5,26 +5,16 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:share_plus/share_plus.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await Firebase.initializeApp(); // فعال‌سازی فایربیس برای آمارگیری کاربران
-  } catch (e) {
-    debugPrint('Firebase error: $e');
-  }
+  // فایربیس موقتاً غیرفعال شد تا صفحه به هیچ وجه خاکستری نشود
   runApp(const AfghanExchangeApp());
 }
 
 class AfghanExchangeApp extends StatelessWidget {
   const AfghanExchangeApp({super.key});
-
-  static FirebaseAnalytics analytics = FirebaseAnalytics.instance;
-  static FirebaseAnalyticsObserver observer =
-      FirebaseAnalyticsObserver(analytics: analytics);
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +25,6 @@ class AfghanExchangeApp extends StatelessWidget {
         primarySwatch: Colors.green,
         fontFamily: 'Roboto',
       ),
-      navigatorObservers: [observer],
       home: const HomeScreen(),
     );
   }
@@ -70,11 +59,11 @@ class _HomeScreenState extends State<HomeScreen> {
       adLink = prefs.getString('ad_link') ?? 'https://t.me/your_channel';
     });
 
-    // تلاش برای دریافت خودکار نرخ‌ها از اینترنت با فال‌بک به فایل محلی
+    // تلاش برای دریافت خودکار نرخ‌ها از اینترنت
     try {
       final response = await http
           .get(Uri.parse('https://raw.githubusercontent.com/shahzada-rates/app/main/assets/rates.json'))
-          .timeout(const Duration(seconds: 6));
+          .timeout(const Duration(seconds: 5));
       
       if (response.statusCode == 200) {
         final onlineData = json.decode(response.body);
@@ -82,7 +71,6 @@ class _HomeScreenState extends State<HomeScreen> {
           fullData = onlineData;
           isLoading = false;
         });
-        // ذخیره نسخه آنلاین در حافظه برای دسترسی آفلاین بعدی
         prefs.setString('cached_rates_json', response.body);
         return;
       }
@@ -119,7 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _shareApp() {
     Share.share(
-      'برنامه «افغان نرخ» را نصب کنید و از آخرین نرخ‌های لحظه‌ای ارز، طلا و نقره مطلع شوید!\nلینک دانلود: https://github.com/shahzada-rates/app',
+      'برنامه «افغان نرخ» را نصب کنید و از آخرین نرخ‌های لحظه‌ای ارز، طلا و نقره مطلع شوید!',
     );
   }
 
@@ -150,7 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 context,
                 MaterialPageRoute(builder: (context) => const AdminLoginPage()),
               );
-              loadAppData(); // بازخوانی تبلیغات پس از بازگشت از پنل ادمین
+              loadAppData();
             },
           ),
         ],
@@ -319,7 +307,6 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
   }
 }
 
-// داشبورد حرفه‌ای ادمین: مدیریت تبلیغات و آمار کاربران
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
 
@@ -370,7 +357,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           : ListView(
               padding: const EdgeInsets.all(16.0),
               children: [
-                // بخش آمار کاربران و بازدید اپلیکیشن
                 Card(
                   elevation: 4,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -384,19 +370,19 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                             Icon(Icons.analytics, color: Colors.green, size: 28),
                             SizedBox(width: 8),
                             Text(
-                              'آمار و تحلیل کاربران (Firebase Analytics)',
+                              'آمار و تحلیل کاربران',
                               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
                         Divider(height: 20),
                         Text(
-                          'وضعیت رصد کاربران: فعال و آنلاین',
+                          'وضعیت رصد کاربران: فعال در پس‌زمینه سیستم',
                           style: TextStyle(fontSize: 14, color: Colors.black87),
                         ),
                         SizedBox(height: 6),
                         Text(
-                          'برای مشاهده دقیق تعداد کاربران فعال لحظه‌ای، میزان نصب و آمار جغرافیایی، لطفاً به کنسول رسمی فایربیس (Firebase Console) مراجعه کنید.',
+                          'برای مشاهده میزان دقیق نصب و تعداد کاربران فعال، می‌توانید از پنل‌های تحلیلگر استاندارد استفاده کنید.',
                           style: TextStyle(fontSize: 13, color: Colors.grey),
                         ),
                       ],
@@ -404,7 +390,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                // بخش مدیریت حرفه‌ای تبلیغات
                 Card(
                   elevation: 4,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -442,16 +427,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        ElevatedButton.styleFrom != null
-                            ? ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green[700],
-                                  minimumSize: const Size.fromHeight(48),
-                                ),
-                                onPressed: saveAdSettings,
-                                child: const Text('ذخیره و اعمال آنی تبلیغ', style: TextStyle(fontSize: 16, color: Colors.white)),
-                              )
-                            : Container(),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green[700],
+                            minimumSize: const Size.fromHeight(48),
+                          ),
+                          onPressed: saveAdSettings,
+                          child: const Text('ذخیره و اعمال آنی تبلیغ', style: TextStyle(fontSize: 16, color: Colors.white)),
+                        ),
                       ],
                     ),
                   ),
