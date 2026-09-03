@@ -12,7 +12,6 @@ import 'package:share_plus/share_plus.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    // موقتاً برای تست، اگر فایربیس خطا داد رد شود
     // await Firebase.initializeApp();
   } catch (e) {
     debugPrint('Firebase error: $e');
@@ -45,15 +44,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  Map<String, dynamic> rates = {
-    'دالر آمریکایی': '70.50',
-    'کلدار پاکستانی': '25.20',
-    'یورو': '76.00',
-    'تومان ایران': '0.0011',
-    'طلای یک عیار (گرام)': '4500'
-  };
+  Map<String, dynamic> fullData = {};
   bool isLoading = false;
-  String errorMessage = '';
 
   @override
   void initState() {
@@ -66,7 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final String jsonString = await rootBundle.loadString('assets/rates.json');
       if (jsonString.isNotEmpty) {
         setState(() {
-          rates = json.decode(jsonString);
+          fullData = json.decode(jsonString);
         });
       }
     } catch (e) {
@@ -89,6 +81,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    String lastUpdated = fullData['last_updated']?.toString() ?? 'نامشخص';
+    List ratesList = fullData['rates'] is List ? fullData['rates'] : [];
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('افغان نرخ'),
@@ -112,17 +107,52 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Column(
         children: [
+          // بخش نمایش تاریخ بروزرسانی
+          Container(
+            padding: const EdgeInsets.all(12),
+            color: Colors.green[50],
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.update, size: 18, color: Colors.green),
+                const SizedBox(width: 8),
+                Text(
+                  'آخرین بروزرسانی: $lastUpdated',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
           Expanded(
-            child: rates.isEmpty
+            child: ratesList.isEmpty
                 ? const Center(child: Text('نرخی موجود نیست'))
                 : ListView.builder(
-                    itemCount: rates.keys.length,
+                    itemCount: ratesList.length,
                     itemBuilder: (context, index) {
-                      String key = rates.keys.elementAt(index);
-                      return ListTile(
-                        leading: const Icon(Icons.currency_exchange, color: Colors.green),
-                        title: Text(key, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        trailing: Text(rates[key].toString(), style: const TextStyle(fontSize: 16, color: Colors.black87)),
+                      var item = ratesList[index];
+                      String currencyName = item['currency']?.toString() ?? '';
+                      String buyPrice = item['buy']?.toString() ?? '';
+                      String sellPrice = item['sell']?.toString() ?? '';
+                      String unit = item['unit']?.toString() ?? '';
+
+                      return Card(
+                        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        child: ListTile(
+                          leading: const Icon(Icons.currency_exchange, color: Colors.green),
+                          title: Text(
+                            currencyName,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                          subtitle: Text('واحد: $unit'),
+                          trailing: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text('خرید: $buyPrice', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                              Text('فروش: $sellPrice', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ),
                       );
                     },
                   ),
